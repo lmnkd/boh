@@ -1,0 +1,4 @@
+# Cartelle
+node_modules/
+
+.env

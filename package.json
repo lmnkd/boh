@@ -1,0 +1,17 @@
+{
+  "name": "bcdemo",
+  "version": "1.0.0",
+  "description": "A demo for managing smart contracts using JavaScript",
+  "main": "demo1.js",
+  "dependencies": {
+    "quorum-js": "^0.3.6",
+    "solc": "^0.8.17",
+    "web3": "^1.10.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Francesco Spegni",
+  "license": "ISC"
+}
