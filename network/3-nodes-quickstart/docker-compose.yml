@@ -1,12 +1,5 @@
-# The following environment variables are substituted if present
-# * QUORUM_CONSENSUS: default to istanbul
-# * QUORUM_DOCKER_IMAGE: default to quorumengineering/quorum:2.5.0
-# * QUORUM_TX_MANAGER_DOCKER_IMAGE: default to quorumengineering/tessera:0.10.2
-# * QUORUM_GETH_ARGS: extra geth arguments to be included when running geth
-# To use Constellation, set QUORUM_TX_MANAGER_DOCKER_IMAGE to Constellation docker image,
-# e.g.: QUORUM_TX_MANAGER_DOCKER_IMAGE=quorumengineering/constellation:0.3.2 docker-compose up -d
-# To use Remix, set QUORUM_GETH_ARGS="--rpccorsdomain https://remix.ethereum.org"
 version: "2.3"
+
 x-quorum-def:
   &quorum-def
   restart: "on-failure"
@@ -77,6 +70,7 @@ x-quorum-def:
   expose:
     - "${QUORUM_P2P_PORT:-21000}"
     - "${QUORUM_RAFT_PORT:-50400}"
+
 x-tx-manager-def:
   &tx-manager-def
   image: "${DOCKER_REGISTRY:-}${QUORUM_TX_MANAGER_DOCKER_IMAGE:-quorumengineering/tessera:0.10.2}"
@@ -101,18 +95,14 @@ x-tx-manager-def:
       in
         tessera)
           cp -r /examples/c$${NODE_ID}/* $${DDIR}
-          #extract the tessera version from the jar
           TESSERA_VERSION=$$(unzip -p /tessera/tessera-app.jar META-INF/MANIFEST.MF | grep Tessera-Version | cut -d" " -f2)
-          echo "Tessera version (extracted from manifest file): $${TESSERA_VERSION}"
           TESSERA_CONFIG_TYPE="-09"
-          echo Config type $${TESSERA_CONFIG_TYPE}
           HOSTNAME=$$(hostname -i)
           sed -i "s,%THIS_PRIV_KEY%,$${DDIR}/tm.key,g" $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           sed -i "s,%THIS_PUB_KEY%,$${DDIR}/tm.pub,g" $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           sed -i 's,etc/quorum/,,g' $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           sed -i 's/%QUORUM-NODE\([0-9]\)_SERVICE_HOST%/txmanager\1/g' $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           sed -i "s/%THIS_SERVICE_HOST%/$${HOSTNAME}/g" $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
-          cat $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           java -Xms128M -Xmx128M -jar /tessera/tessera-app.jar -configfile $${DDIR}/tessera-config$${TESSERA_CONFIG_TYPE}.json
           ;;
         *)
@@ -123,6 +113,7 @@ x-tx-manager-def:
   expose:
     - "${TESSERA_P2P_PORT:-9000}"
     - "${TESSERA_3PARTY_PORT:-9080}"
+
 x-cakeshop-def:
   &cakeshop-def
   image: "${DOCKER_REGISTRY:-}${CAKESHOP_DOCKER_IMAGE:-quorumengineering/cakeshop:0.12.1}"
@@ -146,7 +137,24 @@ x-cakeshop-def:
       cp /examples/cakeshop/local/cakeshop.json $${DDIR}/cakeshop.json
       java -Xms128M -Xmx128M -Dspring.config.additional-location=file:/qdata/cakeshop/local/ -Dcakeshop.config.dir=/qdata/cakeshop -jar /cakeshop/cakeshop.war
       ;;
+
 services:
+
+  postgres:
+    image: postgres:15
+    container_name: postgres-3-nodes-quickstart
+    restart: always
+    environment:
+      POSTGRES_USER: quorum
+      POSTGRES_PASSWORD: quorumpass
+      POSTGRES_DB: quorumdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresvol:/var/lib/postgresql/data
+    networks:
+      3-nodes-quickstart-net:
+
   node1:
     << : *quorum-def
     container_name: node1-3-nodes-quickstart
@@ -166,6 +174,7 @@ services:
     networks:
       3-nodes-quickstart-net:
         ipv4_address: 172.16.224.11
+
   txmanager1:
     << : *tx-manager-def
     container_name: txmanager1-3-nodes-quickstart
@@ -180,6 +189,7 @@ services:
         ipv4_address: 172.16.224.101
     environment:
       - NODE_ID=1
+
   node2:
     << : *quorum-def
     container_name: node2-3-nodes-quickstart
@@ -199,6 +209,7 @@ services:
     networks:
       3-nodes-quickstart-net:
         ipv4_address: 172.16.224.12
+
   txmanager2:
     << : *tx-manager-def
     container_name: txmanager2-3-nodes-quickstart
@@ -213,6 +224,7 @@ services:
         ipv4_address: 172.16.224.102
     environment:
       - NODE_ID=2
+
   node3:
     << : *quorum-def
     container_name: node3-3-nodes-quickstart
@@ -232,6 +244,7 @@ services:
     networks:
       3-nodes-quickstart-net:
         ipv4_address: 172.16.224.13
+
   txmanager3:
     << : *tx-manager-def
     container_name: txmanager3-3-nodes-quickstart
@@ -246,6 +259,7 @@ services:
         ipv4_address: 172.16.224.103
     environment:
       - NODE_ID=3
+
   cakeshop:
     << : *cakeshop-def
     container_name: cakeshop-3-nodes-quickstart
@@ -265,9 +279,10 @@ networks:
     ipam:
       config:
         - subnet: 172.16.224.0/24
-        
+
 volumes:
-  "vol1":
-  "vol2":
-  "vol3":
-  "cakeshopvol":
+  vol1:
+  vol2:
+  vol3:
+  cakeshopvol:
+  postgresvol:
