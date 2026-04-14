@@ -149,6 +149,12 @@ services:
       POSTGRES_DB: quorumdb
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quorum -d quorumdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
     volumes:
       - postgresvol:/var/lib/postgresql/data
     networks:
@@ -275,6 +281,13 @@ services:
   backend:
     build: ./backend
     container_name: backend-3-nodes-quickstart
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     environment:
       - NODE1_RPC=http://node1:8545
       - NODE2_RPC=http://node2:8545
@@ -284,13 +297,20 @@ services:
       - POSTGRES_USER=quorum
       - POSTGRES_PASSWORD=quorumpass
       - POSTGRES_DB=quorumdb
+      - WEB3_PROVIDER=http://node1:8545
+      - BLOCKCHAIN_ACCOUNT=0xed9d02e382b34818e88B88a309c7fe71E65f419d
+      - DATABASE_URI=postgresql://quorum:quorumpass@postgres:5432/quorumdb
     ports:
       - "5000:5000"
     depends_on:
-      - node1
-      - node2
-      - node3
-      - postgres
+      node1:
+        condition: service_healthy
+      node2:
+        condition: service_healthy
+      node3:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       3-nodes-quickstart-net:
         ipv4_address: 172.16.224.200
