@@ -136,7 +136,6 @@ x-cakeshop-def:
       cp /examples/cakeshop/local/application.properties $${DDIR}/application.properties
       cp /examples/cakeshop/local/cakeshop.json $${DDIR}/cakeshop.json
       java -Xms128M -Xmx128M -Dspring.config.additional-location=file:/qdata/cakeshop/local/ -Dcakeshop.config.dir=/qdata/cakeshop -jar /cakeshop/cakeshop.war
-      ;;
 
 services:
 
@@ -272,6 +271,29 @@ services:
     networks:
       3-nodes-quickstart-net:
         ipv4_address: 172.16.224.75
+
+  backend:
+    build: ./backend
+    container_name: backend-3-nodes-quickstart
+    environment:
+      - NODE1_RPC=http://node1:8545
+      - NODE2_RPC=http://node2:8545
+      - NODE3_RPC=http://node3:8545
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=quorum
+      - POSTGRES_PASSWORD=quorumpass
+      - POSTGRES_DB=quorumdb
+    ports:
+      - "5000:5000"
+    depends_on:
+      - node1
+      - node2
+      - node3
+      - postgres
+    networks:
+      3-nodes-quickstart-net:
+        ipv4_address: 172.16.224.200
 
 networks:
   3-nodes-quickstart-net:
