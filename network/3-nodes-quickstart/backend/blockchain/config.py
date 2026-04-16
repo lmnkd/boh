@@ -1,7 +1,42 @@
 from web3 import Web3
+from web3.middleware import ExtraDataToPOAMiddleware
 import os
 import json
 import time
+from pathlib import Path
+from typing import Optional
+
+
+def find_dotenv_path() -> Optional[Path]:
+    current = Path(__file__).resolve()
+    for parent in [current.parent] + list(current.parents):
+        candidate = parent / ".env"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def load_dotenv(dotenv_path: Optional[Path] = None, override: bool = False) -> None:
+    if dotenv_path is None:
+        dotenv_path = find_dotenv_path()
+    if dotenv_path is None:
+        return
+
+    for line in dotenv_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if override or key not in os.environ:
+            os.environ[key] = value
+
+
+# Carica automaticamente .env dalla directory di progetto o da una directory superiore.
+load_dotenv()
 
 # =========================
 # 🌐 CONNECTION BLOCKCHAIN
@@ -17,6 +52,8 @@ w3 = None
 for attempt in range(max_retries):
     try:
         w3 = Web3(Web3.HTTPProvider(WEB3_PROVIDER))
+        # Aggiungi middleware PoA per Quorum/RAFT
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         if w3.is_connected():
             print(f"✅ Blockchain connessa: {WEB3_PROVIDER}")
             break

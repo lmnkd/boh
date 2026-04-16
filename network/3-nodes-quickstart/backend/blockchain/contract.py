@@ -1,7 +1,15 @@
 import json
+import sys
+from pathlib import Path
+
+# Aggiungi la directory padre al path per permettere l'import da qualsiasi directory
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 from blockchain.config import w3, get_contract_address
 
-with open("blockchain/abi.json") as f:
+with open(Path(__file__).resolve().parent / "abi.json") as f:
     abi = json.load(f)
 
 
