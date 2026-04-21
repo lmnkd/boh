@@ -5,9 +5,11 @@ from web3 import Web3
 from blockchain.config import w3
 from blockchain.contract import get_contract
 from blockchain.deploy import deploy_contract
-from database.database import create_app_db, db
+from database.database import create_app_db, db, seed_data
 import os
 import time
+from controller.controller import api
+
 
 app = Flask(__name__)
 
@@ -19,8 +21,13 @@ DATABASE_URI = os.getenv(
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+
+
 # Inizializza DB
 create_app_db(app)
+
+with app.app_context():
+    seed_data()
 
 @app.route("/")
 def test():
@@ -104,6 +111,10 @@ def deploy():
             "status": "ERROR",
             "message": f"❌ Errore durante il deploy: {str(e)}"
         }), 500
+
+
+app.register_blueprint(api, url_prefix="/api")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

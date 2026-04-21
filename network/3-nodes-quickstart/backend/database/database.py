@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, date
 
 db = SQLAlchemy()
 
@@ -139,3 +139,102 @@ def create_app_db(app: Flask):
     with app.app_context():
         db.create_all()
         print("Database creato correttamente!")
+
+def seed_data():
+    print("🌱 Seeding database...")
+
+    # =========================
+    # PAZIENTI
+    # =========================
+    p1 = Patient(
+        wallet_address="0x1111111111111111111111111111111111111111",
+        nome="Mario",
+        cognome="Rossi",
+        data_nascita=date(1990, 5, 10),
+        patient_hash="0x" + "a"*64
+    )
+
+    p2 = Patient(
+        wallet_address="0x2222222222222222222222222222222222222222",
+        nome="Luigi",
+        cognome="Verdi",
+        data_nascita=date(1985, 8, 20),
+        patient_hash="0x" + "b"*64
+    )
+
+    # =========================
+    # MEDICI
+    # =========================
+    d1 = Doctor(
+        wallet_address="0x3333333333333333333333333333333333333333",
+        nome="Giulia",
+        cognome="Bianchi"
+    )
+
+    d2 = Doctor(
+        wallet_address="0x4444444444444444444444444444444444444444",
+        nome="Anna",
+        cognome="Neri"
+    )
+
+    # =========================
+    # OSPEDALI
+    # =========================
+    h1 = Hospital(
+        nome="Ospedale Centrale",
+        indirizzo="Via Roma 1"
+    )
+
+    h2 = Hospital(
+        nome="Clinica San Marco",
+        indirizzo="Via Milano 45"
+    )
+
+    db.session.add_all([p1, p2, d1, d2, h1, h2])
+    db.session.commit()
+
+    # =========================
+    # VISITE
+    # =========================
+    v1 = Visit(
+        blockchain_id=1,
+        patient_id=p1.id,
+        doctor_id=d1.id,
+        data_hash="0x" + "c"*64,
+        patient_hash=p1.patient_hash,
+        confirmed=True
+    )
+
+    db.session.add(v1)
+    db.session.commit()
+
+    # =========================
+    # RECORD
+    # =========================
+    r1 = Record(
+        blockchain_id=1,
+        visit_id=v1.id,
+        authority_wallet="0x5555555555555555555555555555555555555555",
+        data_hash="0x" + "d"*64,
+        status="APPROVED",
+        approve_votes=3,
+        reject_votes=0
+    )
+
+    db.session.add(r1)
+    db.session.commit()
+
+    # =========================
+    # PROBABILITÀ
+    # =========================
+    prob1 = Probability(
+        blockchain_id=1,
+        record_id=r1.id,
+        prior=500000,
+        posterior=750000
+    )
+
+    db.session.add(prob1)
+    db.session.commit()
+
+    print("✅ Seed completato!")
