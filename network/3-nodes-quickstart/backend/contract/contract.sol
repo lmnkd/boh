@@ -90,7 +90,6 @@ contract HealthDataValidator {
 
         visitCount++;
         visitId = visitCount;
-
         _visits[visitId] = Visit({
             doctor: msg.sender,
             patient: patient,
