@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from web3 import Web3
@@ -50,10 +50,7 @@ def test():
     except Exception as e:
         bc_status = f"ERROR: {str(e)}"
 
-    return jsonify({
-        "database": db_status,
-        "blockchain": bc_status
-    })
+    return render_template("pagina_iniziale.html", db_status=db_status, bc_status=bc_status)
 
 @app.route("/contract/status")
 def contract_status():
