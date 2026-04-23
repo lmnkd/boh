@@ -9,7 +9,7 @@ from database.database import create_app_db, db, seed_data
 import os
 import time
 from controller.controller import api
-
+from controller.controller_visite import api
 
 app = Flask(__name__)
 

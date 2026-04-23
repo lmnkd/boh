@@ -60,23 +60,6 @@ def model_to_dict(model, fields):
         output[field] = value
     return output
 
-
-def visit_to_dict(visit):
-    return {
-        "id": visit.id,
-        "blockchain_id": visit.blockchain_id,
-        "patient_id": visit.patient_id,
-        "patient_wallet": visit.patient.wallet_address if visit.patient else None,
-        "doctor_id": visit.doctor_id,
-        "doctor_wallet": visit.doctor.wallet_address if visit.doctor else None,
-        "data_hash": visit.data_hash,
-        "patient_hash": visit.patient_hash,
-        "confirmed": visit.confirmed,
-        "blockchain_tx": visit.blockchain_tx,
-        "created_at": visit.created_at.isoformat() if visit.created_at else None,
-    }
-
-
 def record_to_dict(record):
     return {
         "id": record.id,
@@ -255,91 +238,6 @@ def register_contract_role():
             "transactionHash": receipt.transactionHash.hex(),
         },
     }), 201
-
-
-@api.route("/visits", methods=["GET"])
-def list_visits():
-    visits = Visit.query.all()
-    return render_template("visite.html", visits=[visit_to_dict(v) for v in visits])
-
-
-@api.route("/visits/<int:visit_id>", methods=["GET"])
-def get_visit(visit_id):
-    visit = Visit.query.get(visit_id)
-    if not visit:
-        return jsonify({"error": "Visit not found"}), 404
-    return jsonify(visit_to_dict(visit))
-
-
-@api.route("/visits", methods=["POST"])
-def submit_visit():
-    data = request.get_json() or {}
-    patient_address = normalize_address(data.get("patient_address"))
-    patient_hash = data.get("patient_hash")
-    data_hash = data.get("data_hash")
-    from_address = data.get("from_address")
-
-    if not patient_address or not patient_hash or not data_hash:
-        return jsonify({"error": "patient_address, patient_hash e data_hash sono obbligatori"}), 400
-
-    contract = get_contract()
-
-    try:
-        tx_hash = contract.functions.submitVisit(
-            patient_address,
-            bytes32_from_value(patient_hash),
-            bytes32_from_value(data_hash),
-        ).transact(tx_params(from_address))
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = contract.events.VisitSubmitted().processReceipt(receipt)
-        if not events:
-            raise ValueError("Evento VisitSubmitted non trovato")
-        blockchain_id = events[0].args.visitId
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    patient = Patient.query.filter_by(wallet_address=patient_address).first()
-    doctor = Doctor.query.filter_by(wallet_address=normalize_address(from_address) if from_address else normalize_address(ACCOUNT)).first()
-    if not patient or not doctor:
-        return jsonify({"error": "Patient o Doctor non presente nel database locale"}), 400
-
-    visit = Visit(
-        blockchain_id=blockchain_id,
-        patient_id=patient.id,
-        doctor_id=doctor.id,
-        data_hash=data_hash,
-        patient_hash=patient_hash,
-        confirmed=False,
-        blockchain_tx=tx_hash.hex(),
-    )
-
-    db.session.add(visit)
-    db.session.commit()
-
-    return jsonify({"status": "SUCCESS", "visit": visit_to_dict(visit)}), 201
-
-
-@api.route("/visits/<int:visit_id>/confirm", methods=["POST"])
-def confirm_visit(visit_id):
-    data = request.get_json() or {}
-    from_address = data.get("from_address")
-    visit = Visit.query.get(visit_id)
-
-    if not visit:
-        return jsonify({"error": "Visit non trovato"}), 404
-
-    try:
-        tx_hash = get_contract().functions.confirmVisit(visit.blockchain_id).transact(tx_params(from_address))
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    visit.confirmed = True
-    visit.blockchain_tx = tx_hash.hex()
-    db.session.commit()
-
-    return jsonify({"status": "SUCCESS", "visit": visit_to_dict(visit), "receipt": {"blockNumber": receipt.blockNumber}})
-
 
 @api.route("/records", methods=["GET"])
 def list_records():
