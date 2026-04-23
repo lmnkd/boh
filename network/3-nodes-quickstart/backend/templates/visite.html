@@ -1,0 +1,10 @@
+<div class="main-css">
+    <h1>Visite</h1>
+    <p>Questa è la pagina delle visite. Qui puoi vedere tutte le visite registrate nel sistema.</p>
+    <a href="/">Torna alla pagina iniziale</a>
+    <ul>
+        {% for visit in visits %}
+            <li>{{ visit.nome }} - {{ visit.cognome }}</li>
+        {% endfor %}
+    </ul>
+</div>

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from sqlalchemy.exc import IntegrityError
 from web3 import Web3
 
@@ -260,7 +260,7 @@ def register_contract_role():
 @api.route("/visits", methods=["GET"])
 def list_visits():
     visits = Visit.query.all()
-    return jsonify([visit_to_dict(v) for v in visits])
+    return render_template("visite.html", visits=[visit_to_dict(v) for v in visits])
 
 
 @api.route("/visits/<int:visit_id>", methods=["GET"])
