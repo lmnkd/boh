@@ -8,8 +8,8 @@ from blockchain.deploy import deploy_contract
 from database.database import create_app_db, db, seed_data
 import os
 import time
-from controller.controller import api
-from controller.controller_visite import api
+from controller.controller import api as controller_api
+from controller.controller_visite import api as visite_api
 
 app = Flask(__name__)
 
@@ -110,8 +110,8 @@ def deploy():
         }), 500
 
 
-app.register_blueprint(api, url_prefix="/api")
-
+app.register_blueprint(controller_api, url_prefix="/api")
+app.register_blueprint(visite_api, url_prefix="/api")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -8,7 +8,7 @@ from blockchain.config import ACCOUNT, w3
 from blockchain.contract import get_contract
 from database.database import db, Patient, Doctor, Hospital, Visit, Record, Probability
 
-api = Blueprint("api", __name__)
+api = Blueprint("visite_api", __name__)
 
 def visit_to_dict(visit):
     return {
@@ -67,8 +67,7 @@ def tx_params(from_address=None):
 @api.route("/visits", methods=["GET"])
 def list_visits():
     visits = Visit.query.all()
-    visits_dict = [visit_to_dict(v) for v in visits]
-    return render_template("visite.html", visits=visits_dict)
+    return render_template("visite.html", visits=visits)
 
 
 @api.route("/visits/<int:visit_id>", methods=["GET"])

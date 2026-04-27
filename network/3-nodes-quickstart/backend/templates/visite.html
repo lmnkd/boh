@@ -4,8 +4,7 @@
     <a href="/">Torna alla pagina iniziale</a>
     <ul>
         {% for visit in visits %}
-            <li>{{ visit.id }} - {{ visit.patient_id }}</li>
+            <li>{{ visit.id }} - {{ visit.patient.nome }} {{ visit.patient.cognome }}</li>
         {% endfor %}
     </ul>
-    <p>DEBUG: {{ visits }}</p>
 </div>

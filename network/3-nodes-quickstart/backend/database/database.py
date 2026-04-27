@@ -23,8 +23,7 @@ class Patient(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    visits = db.relationship('Visit', backref='patient', lazy=True)
-
+    visits = db.relationship('Visit', back_populates='patient', lazy=True)
 
 # =========================
 # 🧑‍⚕️ MEDICI
@@ -39,7 +38,7 @@ class Doctor(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100), nullable=False)
 
-    visits = db.relationship('Visit', backref='doctor', lazy=True)
+    visits = db.relationship('Visit', back_populates='doctor', lazy=True)
 
 
 # =========================
@@ -80,8 +79,9 @@ class Visit(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    records = db.relationship('Record', backref='visit', lazy=True)
-
+    records = db.relationship('Record', back_populates='visits', lazy=True)
+    patient = db.relationship('Patient', back_populates='visits')
+    doctor = db.relationship('Doctor', back_populates='visits')
 
 # =========================
 # 📄 RECORD VALIDATI (STEP 3-4)
@@ -108,7 +108,8 @@ class Record(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    probabilities = db.relationship('Probability', backref='record', lazy=True)
+    probabilities = db.relationship('Probability', back_populates='record', lazy=True)
+    visits = db.relationship('Visit', back_populates='records', lazy=True)
 
 
 # =========================
@@ -129,6 +130,7 @@ class Probability(db.Model):
     blockchain_tx = db.Column(db.String(255))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    record = db.relationship('Record', back_populates='probabilities', lazy=True)
 
 
 # =========================
