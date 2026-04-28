@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, render_template, request
+from flask import session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from web3 import Web3
@@ -11,8 +12,12 @@ import time
 from controller.controller import api as controller_api
 from controller.controller_visite import api as visite_api
 from controller.controller_dottore import api as dottore_api
+from controller.auth import auth
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+
+load_dotenv()
 
 # Configurazione PostgreSQL (da variabili d'ambiente)
 DATABASE_URI = os.getenv(
@@ -21,7 +26,7 @@ DATABASE_URI = os.getenv(
 )
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.secret_key = os.getenv("SECRET_KEY", "dev_secret_key")
 
 
 # Inizializza DB
@@ -115,10 +120,21 @@ def deploy():
             "message": f"❌ Errore durante il deploy: {str(e)}"
         }), 500
 
-@app.route("/login")
-def login():
-    return render_template("login.html")
+@app.route("/registrazione_dottore")
+def registrazione_dottore():
+    return render_template("registrazione_dottore.html")
 
+@app.route("/patient")
+def patient_dashboard():
+    if session.get("role") != "PATIENT":
+        return redirect("/")
+    return render_template("patient.html")
+
+@app.route("/doctor")
+def doctor_dashboard():
+    return render_template("doctor.html")
+
+app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(controller_api, url_prefix="/api")
 app.register_blueprint(visite_api, url_prefix="/api")
 app.register_blueprint(dottore_api, url_prefix="/api")

@@ -1,5 +1,64 @@
-<div class="main-css">
-    <h1>Benvenuto nella pagina iniziale!</h1>
-    <p>Questa è la pagina di benvenuto del nostro progetto. Puoi navigare attraverso le varie sezioni per scoprire di più su ciò che stiamo costruendo.</p>
-    <a href="/about">Scopri di più su di noi</a>
-</div>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Login Sistema Sanitario</title>
+</head>
+<body>
+
+    <h1>🔐 Login</h1>
+
+    <!-- ========================= -->
+    <!-- LOGIN EMAIL/PASSWORD -->
+    <!-- ========================= -->
+    <h2>Login con Email</h2>
+
+    <input type="email" id="email" placeholder="Email"><br><br>
+    <input type="password" id="password" placeholder="Password"><br><br>
+
+    <button onclick="login()">Login</button>
+
+    <h3>Risultato:</h3>
+    <pre id="output"></pre>
+
+    <!-- ========================= -->
+    <!-- SCRIPT -->
+    <!-- ========================= -->
+    <script>
+        const API_URL = "/auth";
+
+        let currentWallet = null;
+
+        // =========================
+        // LOGIN PASSWORD
+        // =========================
+        async function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        document.getElementById("output").innerText = data.error;
+        return;
+    }
+
+    // 🔥 REDIRECT PER RUOLO
+    if (data.role === "PATIENT") {
+        window.location.href = "/patient";
+    }
+
+    if (data.role === "DOCTOR") {
+        window.location.href = "/doctor";
+    }
+}
+    </script>
+
+</body>
+</html>

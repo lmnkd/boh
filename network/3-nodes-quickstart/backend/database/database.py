@@ -1,8 +1,34 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+# =========================
+# 👤 USER (AUTENTICAZIONE)
+# =========================
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    wallet_address = db.Column(db.String(255), unique=True)
+    email = db.Column(db.String(255), unique=True)
+
+    password_hash = db.Column(db.String(255))
+
+    role = db.Column(db.String(50), nullable=False)  # PATIENT, DOCTOR, AUTHORITY
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # metodi password
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
 
 # =========================
 # 👤 PAZIENTI
@@ -12,18 +38,18 @@ class Patient(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    wallet_address = db.Column(db.String(255), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
 
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100), nullable=False)
     data_nascita = db.Column(db.Date)
 
-    # hash identificativo (match bytes32 on-chain)
     patient_hash = db.Column(db.String(66), unique=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     visits = db.relationship('Visit', back_populates='patient', lazy=True)
+
 
 # =========================
 # 🧑‍⚕️ MEDICI
@@ -33,7 +59,7 @@ class Doctor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    wallet_address = db.Column(db.String(255), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
 
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100), nullable=False)
@@ -54,23 +80,19 @@ class Hospital(db.Model):
 
 
 # =========================
-# 🩺 VISITE (STEP 1-2)
+# 🩺 VISITE
 # =========================
 class Visit(db.Model):
     __tablename__ = 'visits'
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # ID della blockchain
     blockchain_id = db.Column(db.Integer, unique=True)
 
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
 
-    # hash dati visita (bytes32 → hex string)
     data_hash = db.Column(db.String(66), nullable=False)
-
-    # hash paziente (match smart contract)
     patient_hash = db.Column(db.String(66), nullable=False)
 
     confirmed = db.Column(db.Boolean, default=False)
@@ -83,8 +105,9 @@ class Visit(db.Model):
     patient = db.relationship('Patient', back_populates='visits')
     doctor = db.relationship('Doctor', back_populates='visits')
 
+
 # =========================
-# 📄 RECORD VALIDATI (STEP 3-4)
+# 📄 RECORD
 # =========================
 class Record(db.Model):
     __tablename__ = 'records'
@@ -99,7 +122,7 @@ class Record(db.Model):
 
     data_hash = db.Column(db.String(66), nullable=False)
 
-    status = db.Column(db.String(50), default='PENDING')  # PENDING, APPROVED, REJECTED
+    status = db.Column(db.String(50), default='PENDING')
 
     approve_votes = db.Column(db.Integer, default=0)
     reject_votes = db.Column(db.Integer, default=0)
@@ -113,7 +136,7 @@ class Record(db.Model):
 
 
 # =========================
-# 📊 PROBABILITÀ BAYESIANE (STEP 5)
+# 📊 PROBABILITÀ
 # =========================
 class Probability(db.Model):
     __tablename__ = 'probabilities'
@@ -124,8 +147,8 @@ class Probability(db.Model):
 
     record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
 
-    prior = db.Column(db.Integer, nullable=False)      # x10^6
-    posterior = db.Column(db.Integer, nullable=False)  # x10^6
+    prior = db.Column(db.Integer, nullable=False)
+    posterior = db.Column(db.Integer, nullable=False)
 
     blockchain_tx = db.Column(db.String(255))
 
@@ -142,14 +165,52 @@ def create_app_db(app: Flask):
         db.create_all()
         print("Database creato correttamente!")
 
+
+# =========================
+# SEED
+# =========================
 def seed_data():
     print("🌱 Seeding database...")
+
+    # =========================
+    # USER
+    # =========================
+    u1 = User(
+        wallet_address="0x1111111111111111111111111111111111111111",
+        email="mario.rossi@test.com",
+        role="PATIENT"
+    )
+    u1.set_password("password123")
+
+    u2 = User(
+        wallet_address="0x2222222222222222222222222222222222222222",
+        email="luigi.verdi@test.com",
+        role="PATIENT"
+    )
+    u2.set_password("password123")
+
+    u3 = User(
+        wallet_address="0x3333333333333333333333333333333333333333",
+        email="giulia.bianchi@test.com",
+        role="DOCTOR"
+    )
+    u3.set_password("password123")
+
+    u4 = User(
+        wallet_address="0x4444444444444444444444444444444444444444",
+        email="anna.neri@test.com",
+        role="DOCTOR"
+    )
+    u4.set_password("password123")
+
+    db.session.add_all([u1, u2, u3, u4])
+    db.session.commit()
 
     # =========================
     # PAZIENTI
     # =========================
     p1 = Patient(
-        wallet_address="0x1111111111111111111111111111111111111111",
+        user_id=u1.id,
         nome="Mario",
         cognome="Rossi",
         data_nascita=date(1990, 5, 10),
@@ -157,7 +218,7 @@ def seed_data():
     )
 
     p2 = Patient(
-        wallet_address="0x2222222222222222222222222222222222222222",
+        user_id=u2.id,
         nome="Luigi",
         cognome="Verdi",
         data_nascita=date(1985, 8, 20),
@@ -168,75 +229,18 @@ def seed_data():
     # MEDICI
     # =========================
     d1 = Doctor(
-        wallet_address="0x3333333333333333333333333333333333333333",
+        user_id=u3.id,
         nome="Giulia",
         cognome="Bianchi"
     )
 
     d2 = Doctor(
-        wallet_address="0x4444444444444444444444444444444444444444",
+        user_id=u4.id,
         nome="Anna",
         cognome="Neri"
     )
 
-    # =========================
-    # OSPEDALI
-    # =========================
-    h1 = Hospital(
-        nome="Ospedale Centrale",
-        indirizzo="Via Roma 1"
-    )
-
-    h2 = Hospital(
-        nome="Clinica San Marco",
-        indirizzo="Via Milano 45"
-    )
-
-    db.session.add_all([p1, p2, d1, d2, h1, h2])
-    db.session.commit()
-
-    # =========================
-    # VISITE
-    # =========================
-    v1 = Visit(
-        blockchain_id=1,
-        patient_id=p1.id,
-        doctor_id=d1.id,
-        data_hash="0x" + "c"*64,
-        patient_hash=p1.patient_hash,
-        confirmed=True
-    )
-
-    db.session.add(v1)
-    db.session.commit()
-
-    # =========================
-    # RECORD
-    # =========================
-    r1 = Record(
-        blockchain_id=1,
-        visit_id=v1.id,
-        authority_wallet="0x5555555555555555555555555555555555555555",
-        data_hash="0x" + "d"*64,
-        status="APPROVED",
-        approve_votes=3,
-        reject_votes=0
-    )
-
-    db.session.add(r1)
-    db.session.commit()
-
-    # =========================
-    # PROBABILITÀ
-    # =========================
-    prob1 = Probability(
-        blockchain_id=1,
-        record_id=r1.id,
-        prior=500000,
-        posterior=750000
-    )
-
-    db.session.add(prob1)
+    db.session.add_all([p1, p2, d1, d2])
     db.session.commit()
 
     print("✅ Seed completato!")
