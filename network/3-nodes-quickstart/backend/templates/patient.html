@@ -1,1 +1,66 @@
-<div> patient </div>
+<div class="main-css">
+    <h1>Bentornato {{ patient.nome }} {{ patient.cognome }}</h1>
+
+    <section>
+        <h2>Visite confermate</h2>
+        {% set confirmed_visits = visits | selectattr('confirmed') | list %}
+        {% if confirmed_visits %}
+            <ul>
+                {% for visit in confirmed_visits %}
+                    <li>
+                        Visita #{{ visit.id }} - Dottore: {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Non hai ancora visite confermate.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Visite da confermare</h2>
+        {% set pending_visits = visits | rejectattr('confirmed') | list %}
+        {% if pending_visits %}
+            <ul>
+                {% for visit in pending_visits %}
+                    <li>
+                        Visita #{{ visit.id }} - Dottore: {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                        <button class="confirm-visit" data-visit-id="{{ visit.id }}">Conferma visita</button>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Non ci sono visite da confermare.</p>
+        {% endif %}
+    </section>
+
+    <a href="/">Torna alla pagina iniziale</a>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.confirm-visit').forEach(button => {
+        button.addEventListener('click', async () => {
+            const visitId = button.getAttribute('data-visit-id');
+            const response = await fetch(`/api/visits/${visitId}/confirm`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                alert('Errore durante la conferma: ' + errorText);
+                return;
+            }
+
+            alert('Visita confermata con successo. La pagina verrà aggiornata.');
+            window.location.reload();
+        });
+    });
+});
+</script>
