@@ -5,6 +5,54 @@
     <ul>
         {% for visit in visits %}
             <li>{{ visit.id }} - {{ visit.patient.nome }} {{ visit.patient.cognome }}</li>
+            <button onclick="location.href='/visits/delete/{{ visit.id }}'">Elimina Visita</button>
         {% endfor %}
     </ul>
+    
+    <h2>Fai il submit di una nuova visita</h2>
+
+<form id="visitForm">
+    <label for="patient_id">ID Paziente:</label>
+    <input type="number" id="patient_id" required><br><br>
+
+    <label for="doctor_id">ID Dottore:</label>
+    <input type="number" id="doctor_id" required><br><br>
+
+    <button type="submit">Aggiungi Visita</button>
+</form>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    document.getElementById("visitForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const data = {
+            patient_id: document.getElementById("patient_id").value,
+            doctor_id: document.getElementById("doctor_id").value
+        };
+
+        console.log("📦 Dati inviati:", data);
+
+        const res = await fetch("/api/visits", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        // 🔥 DEBUG SICURO
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("❌ Errore server:", text);
+            return;
+        }
+
+        const result = await res.json();
+        console.log("✅ Risposta server:", result);
+    });
+
+});
+</script>
+ 
 </div>

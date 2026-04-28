@@ -10,6 +10,7 @@ import os
 import time
 from controller.controller import api as controller_api
 from controller.controller_visite import api as visite_api
+from controller.controller_dottore import api as dottore_api
 
 app = Flask(__name__)
 
@@ -27,7 +28,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 create_app_db(app)
 
 with app.app_context():
-    seed_data()
+    try:
+        existing = db.session.execute(text("SELECT 1 FROM doctors LIMIT 1")).fetchone()
+        if not existing:
+            seed_data()
+    except Exception:
+        seed_data()
 
 @app.route("/")
 def test():
@@ -109,9 +115,13 @@ def deploy():
             "message": f"❌ Errore durante il deploy: {str(e)}"
         }), 500
 
+@app.route("/login")
+def login():
+    return render_template("login.html")
 
 app.register_blueprint(controller_api, url_prefix="/api")
 app.register_blueprint(visite_api, url_prefix="/api")
+app.register_blueprint(dottore_api, url_prefix="/api")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

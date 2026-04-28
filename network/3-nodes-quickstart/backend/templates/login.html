@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Doctor Login</title>
+</head>
+<body>
+
+<h2>Registrazione Dottore</h2>
+
+<form id="doctorForm">
+    <input type="text" id="nome" placeholder="Nome" required>
+    <input type="text" id="cognome" placeholder="Cognome" required>
+    <button type="button" onclick="connectAndRegister()">Registra con MetaMask</button>
+</form>
+
+<p id="status"></p>
+
+<script>
+let walletAddress = null;
+
+// -----------------------------
+// CONNECT METAMASK
+// -----------------------------
+async function connectWallet() {
+    if (!window.ethereum) {
+        alert("Installa MetaMask");
+        return null;
+    }
+
+    const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts"
+    });
+
+    return accounts[0];
+}
+
+// -----------------------------
+// MAIN FUNCTION
+// -----------------------------
+async function connectAndRegister() {
+
+    const nome = document.getElementById("nome").value;
+    const cognome = document.getElementById("cognome").value;
+
+    if (!nome || !cognome) {
+        alert("Inserisci nome e cognome");
+        return;
+    }
+
+    walletAddress = await connectWallet();
+
+    if (!walletAddress) return;
+
+    // Messaggio da firmare
+    const message = "Register doctor: " + Date.now();
+
+    // Firma con MetaMask
+    const signature = await window.ethereum.request({
+        method: "personal_sign",
+        params: [message, walletAddress]
+    });
+
+    // Invio al backend Flask
+    const response = await fetch("/api/doctors", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            wallet_address: walletAddress,
+            nome: nome,
+            cognome: cognome,
+            message: message,
+            signature: signature
+        })
+    });
+
+    const data = await response.json();
+
+    document.getElementById("status").innerText =
+        response.ok ? "Registrazione OK" : "Errore: " + data.error;
+}
+</script>
+
+</body>
+</html>

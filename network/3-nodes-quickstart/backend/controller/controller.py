@@ -131,44 +131,7 @@ def create_patient():
     return jsonify(model_to_dict(patient, ["id", "wallet_address", "nome", "cognome", "data_nascita", "patient_hash", "created_at"])), 201
 
 
-@api.route("/doctors", methods=["GET"])
-def list_doctors():
-    doctors = Doctor.query.all()
-    return jsonify([model_to_dict(d, ["id", "wallet_address", "nome", "cognome"]) for d in doctors])
 
-
-@api.route("/doctors/<int:doctor_id>", methods=["GET"])
-def get_doctor(doctor_id):
-    doctor = Doctor.query.get(doctor_id)
-    if not doctor:
-        return jsonify({"error": "Doctor not found"}), 404
-    return jsonify(model_to_dict(doctor, ["id", "wallet_address", "nome", "cognome"]))
-
-
-@api.route("/doctors", methods=["POST"])
-def create_doctor():
-    data = request.get_json() or {}
-    wallet_address = normalize_address(data.get("wallet_address"))
-    nome = data.get("nome")
-    cognome = data.get("cognome")
-
-    if not wallet_address or not nome or not cognome:
-        return jsonify({"error": "wallet_address, nome e cognome sono obbligatori"}), 400
-
-    doctor = Doctor(
-        wallet_address=wallet_address,
-        nome=nome,
-        cognome=cognome,
-    )
-
-    try:
-        db.session.add(doctor)
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"error": "Doctor già esistente"}), 409
-
-    return jsonify(model_to_dict(doctor, ["id", "wallet_address", "nome", "cognome"])), 201
 
 
 @api.route("/hospitals", methods=["GET"])

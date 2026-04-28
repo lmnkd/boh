@@ -69,6 +69,15 @@ def list_visits():
     visits = Visit.query.all()
     return render_template("visite.html", visits=visits)
 
+@api.route("/visits/delete/<int:visit_id>", methods=["GET"])
+def delete_visit(visit_id):
+    visit = Visit.query.get(visit_id)
+    if not visit:
+        return jsonify({"error": "Visit not found"}), 404
+    db.session.delete(visit)
+    db.session.commit()
+    return jsonify({"status": "SUCCESS", "message": "Visit deleted successfully"})
+
 
 @api.route("/visits/<int:visit_id>", methods=["GET"])
 def get_visit(visit_id):
@@ -81,41 +90,53 @@ def get_visit(visit_id):
 @api.route("/visits", methods=["POST"])
 def submit_visit():
     data = request.get_json() or {}
-    patient_address = normalize_address(data.get("patient_address"))
-    patient_hash = data.get("patient_hash")
-    data_hash = data.get("data_hash")
-    from_address = data.get("from_address")
 
-    if not patient_address or not patient_hash or not data_hash:
-        return jsonify({"error": "patient_address, patient_hash e data_hash sono obbligatori"}), 400
+    patient_id = data.get("patient_id")
+    doctor_id = data.get("doctor_id")
+
+    if not patient_id or not doctor_id:
+        return jsonify({"error": "patient_id e doctor_id obbligatori"}), 400
+
+    patient = Patient.query.get(patient_id)
+    doctor = Doctor.query.get(doctor_id)
+
+    if not patient or not doctor:
+        return jsonify({"error": "Patient o Doctor non trovato"}), 404
+
+    # 🔐 NON mettiamo dati personali on-chain
+    patient_address = patient.wallet_address
+    doctor_address = doctor.wallet_address
+
+    # 🔐 generazione hash (esempio semplice)
+    patient_hash = Web3.keccak(text=str(patient_id))
+    data_hash = Web3.keccak(text=f"{patient_id}-{doctor_id}-{datetime.utcnow()}")
 
     contract = get_contract()
 
     try:
         tx_hash = contract.functions.submitVisit(
             patient_address,
-            bytes32_from_value(patient_hash),
-            bytes32_from_value(data_hash),
-        ).transact(tx_params(from_address))
+            patient_hash,
+            data_hash,
+        ).transact(tx_params(doctor_address))
+
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+
         events = contract.events.VisitSubmitted().processReceipt(receipt)
         if not events:
             raise ValueError("Evento VisitSubmitted non trovato")
+
         blockchain_id = events[0].args.visitId
+
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
-
-    patient = Patient.query.filter_by(wallet_address=patient_address).first()
-    doctor = Doctor.query.filter_by(wallet_address=normalize_address(from_address) if from_address else normalize_address(ACCOUNT)).first()
-    if not patient or not doctor:
-        return jsonify({"error": "Patient o Doctor non presente nel database locale"}), 400
 
     visit = Visit(
         blockchain_id=blockchain_id,
         patient_id=patient.id,
         doctor_id=doctor.id,
-        data_hash=data_hash,
-        patient_hash=patient_hash,
+        patient_hash=patient_hash.hex(),
+        data_hash=data_hash.hex(),
         confirmed=False,
         blockchain_tx=tx_hash.hex(),
     )
@@ -123,7 +144,10 @@ def submit_visit():
     db.session.add(visit)
     db.session.commit()
 
-    return jsonify({"status": "SUCCESS", "visit": visit_to_dict(visit)}), 201
+    return jsonify({
+        "status": "SUCCESS",
+        "visit": visit_to_dict(visit)
+    }), 201
 
 
 @api.route("/visits/<int:visit_id>/confirm", methods=["POST"])
