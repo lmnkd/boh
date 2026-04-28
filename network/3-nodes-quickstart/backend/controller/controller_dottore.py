@@ -4,7 +4,7 @@ from web3 import Web3
 from eth_account.messages import encode_defunct
 
 from blockchain.config import w3
-from database.database import db, Doctor
+from database.database import db, Doctor, User
 
 api = Blueprint("dottore_api", __name__)
 
@@ -29,12 +29,22 @@ def model_to_dict(obj, fields):
 
 @api.route("/doctors", methods=["GET"])
 def list_doctors():
+
     doctors = Doctor.query.all()
 
-    return jsonify([
-        model_to_dict(d, ["id", "wallet_address", "nome", "cognome"])
-        for d in doctors
-    ])
+    result = []
+
+    for d in doctors:
+        result.append({
+            "id": d.id,
+            "nome": d.nome,
+            "cognome": d.cognome,
+            "email": d.user.email if d.user else None,
+            "wallet_address": d.user.wallet_address if d.user else None,
+            "role": d.user.role if d.user else None
+        })
+
+    return jsonify(result), 200
 
 
 # ----------------------------
@@ -54,72 +64,41 @@ def get_doctor(doctor_id):
 
 
 # ----------------------------
-# CREATE / LOGIN DOCTOR (META MASK)
+# CREATE DOCTOR
 # ----------------------------
 
-@api.route("/doctors", methods=["POST"])
-def create_doctor():
-    data = request.get_json() or {}
+@api.route("/register-doctor", methods=["POST"])
+def register_doctor():
 
-    wallet_address = normalize_address(data.get("wallet_address"))
-    nome = data.get("nome")
-    cognome = data.get("cognome")
-    signature = data.get("signature")
-    message = data.get("message")
+    data = request.get_json()
 
-    # ----------------------------
-    # VALIDATION INPUT
-    # ----------------------------
-    if not wallet_address or not nome or not cognome or not signature or not message:
-        return jsonify({
-            "error": "wallet_address, nome, cognome, signature e message sono obbligatori"
-        }), 400
+    # -------------------------
+    # 1. CREA USER
+    # -------------------------
+    user = User(
+        email=data["email"],
+        wallet_address=data["wallet_address"],
+        role="DOCTOR"
+    )
+    user.set_password(data["password"])
 
-    # ----------------------------
-    # CHECK IF DOCTOR EXISTS (LOGIN MODE)
-    # ----------------------------
-    existing = Doctor.query.filter_by(wallet_address=wallet_address).first()
+    db.session.add(user)
+    db.session.commit()  # serve per ottenere user.id
 
-    if existing:
-        return jsonify({
-            "message": "Doctor già registrato",
-            "doctor": model_to_dict(existing, ["id", "wallet_address", "nome", "cognome"])
-        }), 200
-
-    # ----------------------------
-    # VERIFY META MASK SIGNATURE
-    # ----------------------------
-    try:
-        encoded_message = encode_defunct(text=message)
-
-        recovered = w3.eth.account.recover_message(
-            encoded_message,
-            signature=signature
-        )
-
-        if recovered.lower() != wallet_address.lower():
-            return jsonify({"error": "Firma non valida"}), 401
-
-    except Exception:
-        return jsonify({"error": "Errore verifica firma"}), 400
-
-    # ----------------------------
-    # CREATE DOCTOR
-    # ----------------------------
+    # -------------------------
+    # 2. CREA DOCTOR
+    # -------------------------
     doctor = Doctor(
-        wallet_address=wallet_address,
-        nome=nome,
-        cognome=cognome,
+        user_id=user.id,
+        nome=data["nome"],
+        cognome=data["cognome"]
     )
 
-    try:
-        db.session.add(doctor)
-        db.session.commit()
+    db.session.add(doctor)
+    db.session.commit()
 
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"error": "Doctor già esistente"}), 409
-
-    return jsonify(
-        model_to_dict(doctor, ["id", "wallet_address", "nome", "cognome"])
-    ), 201
+    return jsonify({
+        "message": "Doctor creato con successo",
+        "doctor_id": doctor.id,
+        "user_id": user.id
+    }), 201

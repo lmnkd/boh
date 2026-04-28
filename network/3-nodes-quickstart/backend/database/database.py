@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 db = SQLAlchemy()
 
 # =========================
-# 👤 USER (AUTENTICAZIONE)
+# 👤 USER (AUTH)
 # =========================
 class User(db.Model):
     __tablename__ = 'users'
@@ -14,15 +14,18 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     wallet_address = db.Column(db.String(255), unique=True)
-    email = db.Column(db.String(255), unique=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
 
-    password_hash = db.Column(db.String(255))
+    password_hash = db.Column(db.String(255), nullable=False)
 
     role = db.Column(db.String(50), nullable=False)  # PATIENT, DOCTOR, AUTHORITY
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # metodi password
+    # relations
+    patient = db.relationship('Patient', backref='user', uselist=False)
+    doctor = db.relationship('Doctor', backref='user', uselist=False)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -31,7 +34,7 @@ class User(db.Model):
 
 
 # =========================
-# 👤 PAZIENTI
+# 👤 PATIENT
 # =========================
 class Patient(db.Model):
     __tablename__ = 'patients'
@@ -52,7 +55,7 @@ class Patient(db.Model):
 
 
 # =========================
-# 🧑‍⚕️ MEDICI
+# 🧑‍⚕️ DOCTOR
 # =========================
 class Doctor(db.Model):
     __tablename__ = 'doctors'
@@ -68,7 +71,7 @@ class Doctor(db.Model):
 
 
 # =========================
-# 🏥 OSPEDALI
+# 🏥 HOSPITAL
 # =========================
 class Hospital(db.Model):
     __tablename__ = 'hospitals'
@@ -80,7 +83,7 @@ class Hospital(db.Model):
 
 
 # =========================
-# 🩺 VISITE
+# 🩺 VISIT
 # =========================
 class Visit(db.Model):
     __tablename__ = 'visits'
@@ -101,9 +104,10 @@ class Visit(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    records = db.relationship('Record', back_populates='visits', lazy=True)
+    # relations
     patient = db.relationship('Patient', back_populates='visits')
     doctor = db.relationship('Doctor', back_populates='visits')
+    records = db.relationship('Record', back_populates='visit', lazy=True)
 
 
 # =========================
@@ -131,12 +135,13 @@ class Record(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # relations
+    visit = db.relationship('Visit', back_populates='records')
     probabilities = db.relationship('Probability', back_populates='record', lazy=True)
-    visits = db.relationship('Visit', back_populates='records', lazy=True)
 
 
 # =========================
-# 📊 PROBABILITÀ
+# 📊 PROBABILITY
 # =========================
 class Probability(db.Model):
     __tablename__ = 'probabilities'
@@ -153,28 +158,26 @@ class Probability(db.Model):
     blockchain_tx = db.Column(db.String(255))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    record = db.relationship('Record', back_populates='probabilities', lazy=True)
+
+    record = db.relationship('Record', back_populates='probabilities')
 
 
 # =========================
-# INIT DATABASE
+# INIT DB
 # =========================
 def create_app_db(app: Flask):
     db.init_app(app)
     with app.app_context():
         db.create_all()
-        print("Database creato correttamente!")
+        print("✅ Database creato correttamente!")
 
 
 # =========================
-# SEED
+# SEED (ESEMPIO)
 # =========================
 def seed_data():
     print("🌱 Seeding database...")
 
-    # =========================
-    # USER
-    # =========================
     u1 = User(
         wallet_address="0x1111111111111111111111111111111111111111",
         email="mario.rossi@test.com",
@@ -185,30 +188,13 @@ def seed_data():
     u2 = User(
         wallet_address="0x2222222222222222222222222222222222222222",
         email="luigi.verdi@test.com",
-        role="PATIENT"
+        role="DOCTOR"
     )
     u2.set_password("password123")
 
-    u3 = User(
-        wallet_address="0x3333333333333333333333333333333333333333",
-        email="giulia.bianchi@test.com",
-        role="DOCTOR"
-    )
-    u3.set_password("password123")
-
-    u4 = User(
-        wallet_address="0x4444444444444444444444444444444444444444",
-        email="anna.neri@test.com",
-        role="DOCTOR"
-    )
-    u4.set_password("password123")
-
-    db.session.add_all([u1, u2, u3, u4])
+    db.session.add_all([u1, u2])
     db.session.commit()
 
-    # =========================
-    # PAZIENTI
-    # =========================
     p1 = Patient(
         user_id=u1.id,
         nome="Mario",
@@ -217,30 +203,13 @@ def seed_data():
         patient_hash="0x" + "a"*64
     )
 
-    p2 = Patient(
+    d1 = Doctor(
         user_id=u2.id,
         nome="Luigi",
-        cognome="Verdi",
-        data_nascita=date(1985, 8, 20),
-        patient_hash="0x" + "b"*64
+        cognome="Verdi"
     )
 
-    # =========================
-    # MEDICI
-    # =========================
-    d1 = Doctor(
-        user_id=u3.id,
-        nome="Giulia",
-        cognome="Bianchi"
-    )
-
-    d2 = Doctor(
-        user_id=u4.id,
-        nome="Anna",
-        cognome="Neri"
-    )
-
-    db.session.add_all([p1, p2, d1, d2])
+    db.session.add_all([p1, d1])
     db.session.commit()
 
     print("✅ Seed completato!")

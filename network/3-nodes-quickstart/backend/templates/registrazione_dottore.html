@@ -2,22 +2,26 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Doctor Login</title>
+    <title>Registrazione Medico</title>
 </head>
 <body>
 
-<h2>Registrazione Dottore</h2>
+<h2>Registrazione Medico</h2>
 
-<form id="doctorForm">
+<form id="registerForm">
+
     <input type="text" id="nome" placeholder="Nome" required>
     <input type="text" id="cognome" placeholder="Cognome" required>
-    <button type="button" onclick="connectAndRegister()">Registra con MetaMask</button>
+
+    <button type="button" onclick="registerDoctor()">
+        Connetti MetaMask e registra
+    </button>
+
 </form>
 
 <p id="status"></p>
 
 <script>
-let walletAddress = null;
 
 // -----------------------------
 // CONNECT METAMASK
@@ -36,51 +40,65 @@ async function connectWallet() {
 }
 
 // -----------------------------
-// MAIN FUNCTION
+// GENERA EMAIL AUTOMATICA
 // -----------------------------
-async function connectAndRegister() {
+function generateEmail(nome, cognome) {
+    return `${nome.toLowerCase()}.${cognome.toLowerCase()}@test.com`;
+}
+
+// -----------------------------
+// GENERA PASSWORD RANDOM
+// -----------------------------
+function generatePassword() {
+    return Math.random().toString(36).slice(-10);
+}
+
+// -----------------------------
+// REGISTRAZIONE
+// -----------------------------
+async function registerDoctor() {
 
     const nome = document.getElementById("nome").value;
     const cognome = document.getElementById("cognome").value;
 
     if (!nome || !cognome) {
-        alert("Inserisci nome e cognome");
+        alert("Compila tutti i campi");
         return;
     }
 
-    walletAddress = await connectWallet();
+    // 🔥 CONNETTI WALLET
+    const wallet = await connectWallet();
+    if (!wallet) return;
 
-    if (!walletAddress) return;
+    const email = generateEmail(nome, cognome);
+    const password = generatePassword();
 
-    // Messaggio da firmare
-    const message = "Register doctor: " + Date.now();
-
-    // Firma con MetaMask
-    const signature = await window.ethereum.request({
-        method: "personal_sign",
-        params: [message, walletAddress]
-    });
-
-    // Invio al backend Flask
-    const response = await fetch("/api/doctors", {
+    // -----------------------------
+    // INVIO BACKEND
+    // -----------------------------
+    const response = await fetch("/api/register-doctor", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            wallet_address: walletAddress,
             nome: nome,
             cognome: cognome,
-            message: message,
-            signature: signature
+            email: email,
+            password: password,
+            role: "DOCTOR",
+            wallet_address: wallet   // 🔥 FIX IMPORTANTE
         })
     });
 
     const data = await response.json();
 
     document.getElementById("status").innerText =
-        response.ok ? "Registrazione OK" : "Errore: " + data.error;
+        response.ok
+        ? `Registrazione OK\nEmail: ${email}\nPassword: ${password}\nWallet: ${wallet}`
+        : "Errore: " + (data.error || "server error");
 }
+
 </script>
 
 </body>
