@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# =========================
+# 📂 CONFIGURAZIONE E CARICAMENTO .env
 
 def find_dotenv_path() -> Optional[Path]:
     current = Path(__file__).resolve()

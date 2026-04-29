@@ -23,8 +23,10 @@
 
 <script>
 
+let currentWallet = null;
+
 // -----------------------------
-// CONNECT METAMASK
+// CONNETTI METAMASK (FIX DEFINITIVO)
 // -----------------------------
 async function connectWallet() {
     if (!window.ethereum) {
@@ -32,29 +34,67 @@ async function connectWallet() {
         return null;
     }
 
-    const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts"
-    });
+    try {
+        // 🔥 FORZA APERTURA POPUP META MASK
+        await window.ethereum.request({
+            method: "wallet_requestPermissions",
+            params: [{ eth_accounts: {} }]
+        });
 
-    return accounts[0];
+        const accounts = await window.ethereum.request({
+            method: "eth_accounts"
+        });
+
+        if (!accounts || accounts.length === 0) {
+            alert("Nessun account selezionato");
+            return null;
+        }
+
+        currentWallet = accounts[0];
+        console.log("Wallet connesso:", currentWallet);
+
+        return currentWallet;
+
+    } catch (error) {
+        console.error("Errore MetaMask:", error);
+        alert("Connessione MetaMask fallita o annullata");
+        return null;
+    }
 }
 
 // -----------------------------
-// GENERA EMAIL AUTOMATICA
+// ASCOLTA CAMBIO ACCOUNT
+// -----------------------------
+if (window.ethereum) {
+    window.ethereum.on("accountsChanged", (accounts) => {
+        if (!accounts || accounts.length === 0) {
+            currentWallet = null;
+            document.getElementById("status").innerText =
+                "Wallet disconnesso";
+        } else {
+            currentWallet = accounts[0];
+            document.getElementById("status").innerText =
+                "Wallet attivo: " + currentWallet;
+        }
+    });
+}
+
+// -----------------------------
+// EMAIL AUTOMATICA
 // -----------------------------
 function generateEmail(nome, cognome) {
     return `${nome.toLowerCase()}.${cognome.toLowerCase()}@test.com`;
 }
 
 // -----------------------------
-// GENERA PASSWORD RANDOM
+// PASSWORD RANDOM
 // -----------------------------
 function generatePassword() {
     return Math.random().toString(36).slice(-10);
 }
 
 // -----------------------------
-// REGISTRAZIONE
+// REGISTRAZIONE MEDICO
 // -----------------------------
 async function registerDoctor() {
 
@@ -66,37 +106,40 @@ async function registerDoctor() {
         return;
     }
 
-    // 🔥 CONNETTI WALLET
     const wallet = await connectWallet();
     if (!wallet) return;
 
     const email = generateEmail(nome, cognome);
     const password = generatePassword();
 
-    // -----------------------------
-    // INVIO BACKEND
-    // -----------------------------
-    const response = await fetch("/api/register-doctor", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            nome: nome,
-            cognome: cognome,
-            email: email,
-            password: password,
-            role: "DOCTOR",
-            wallet_address: wallet   // 🔥 FIX IMPORTANTE
-        })
-    });
+    try {
+        const response = await fetch("/api/register-doctor", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                nome: nome,
+                cognome: cognome,
+                email: email,
+                password: password,
+                role: "DOCTOR",
+                wallet_address: wallet
+            })
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    document.getElementById("status").innerText =
-        response.ok
-        ? `Registrazione OK\nEmail: ${email}\nPassword: ${password}\nWallet: ${wallet}`
-        : "Errore: " + (data.error || "server error");
+        document.getElementById("status").innerText =
+            response.ok
+                ? `Registrazione OK\nEmail: ${email}\nPassword: ${password}\nWallet: ${wallet}`
+                : "Errore: " + (data.error || "server error");
+
+    } catch (err) {
+        console.error("Errore fetch:", err);
+        document.getElementById("status").innerText =
+            "Errore di connessione al server";
+    }
 }
 
 </script>
