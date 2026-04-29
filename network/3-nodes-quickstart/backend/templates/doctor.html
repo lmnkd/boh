@@ -1,3 +1,73 @@
-<div>
-    doctor
+<div class="main-css">
+    <h1>Bentornato {{ doctor.nome }} {{ doctor.cognome }}</h1>
+
+    <section>
+        <h2>Crea una nuova visita</h2>
+        <form id="visitForm">
+            <label for="patient_id">Seleziona Paziente:</label>
+            <select id="patient_id" required>
+                <option value="">-- Scegli un paziente --</option>
+                {% for patient in patients %}
+                    <option value="{{ patient.id }}">{{ patient.nome }} {{ patient.cognome }}</option>
+                {% endfor %}
+            </select><br><br>
+
+            <input type="hidden" id="doctor_id" value="{{ doctor.id }}">
+
+            <button type="submit">Crea Visita</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Le tue visite</h2>
+        {% if visits %}
+            <ul>
+                {% for visit in visits %}
+                    <li>
+                        Visita #{{ visit.id }} - Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }} - Confermata: {{ visit.confirmed }}
+                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Non hai ancora creato visite.</p>
+        {% endif %}
+    </section>
+
+    <a href="/">Torna alla pagina iniziale</a>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("visitForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const data = {
+            patient_id: document.getElementById("patient_id").value,
+            doctor_id: document.getElementById("doctor_id").value
+        };
+
+        console.log("📦 Dati inviati:", data);
+
+        const res = await fetch("/api/visits", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("❌ Errore server:", text);
+            alert("Errore durante la creazione della visita: " + text);
+            return;
+        }
+
+        const result = await res.json();
+        console.log("✅ Risposta server:", result);
+        alert("Visita creata con successo!");
+        window.location.reload();
+    });
+});
+</script>
