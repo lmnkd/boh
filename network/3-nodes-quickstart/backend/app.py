@@ -6,7 +6,7 @@ from web3 import Web3
 from blockchain.config import w3
 from blockchain.contract import get_contract
 from blockchain.deploy import deploy_contract
-from database.database import create_app_db, db, seed_data, Patient, Visit, Doctor
+from database.database import create_app_db, db, seed_data, Patient, Visit, Doctor, Admin
 import os
 import time
 from controller.controller import api as controller_api
@@ -137,6 +137,7 @@ def patient_dashboard():
 
 @app.route("/doctor")
 def doctor_dashboard():
+    #return render_template("doctor.html")
     if session.get("role") != "DOCTOR":
         return redirect("/")
     doctor = Doctor.query.filter_by(user_id=session["user_id"]).first()
@@ -145,6 +146,16 @@ def doctor_dashboard():
     visits = doctor.visits
     patients = Patient.query.all()  # Per selezionare pazienti nella creazione visita
     return render_template("doctor.html", doctor=doctor, visits=visits, patients=patients)
+
+@app.route("/admin")
+def admin_dashboard():
+    if session.get("role") != "ADMIN":
+        return redirect("/")
+    admin = Admin.query.filter_by(user_id=session["user_id"]).first()
+    if not admin:
+        return redirect("/")
+    visits = Visit.query.all()
+    return render_template("admin.html", admin=admin, visits=visits)
 
 app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(controller_api, url_prefix="/api")

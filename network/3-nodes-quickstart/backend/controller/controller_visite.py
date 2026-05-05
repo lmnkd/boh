@@ -6,7 +6,7 @@ from web3 import Web3
 
 from blockchain.config import ACCOUNT, w3
 from blockchain.contract import get_contract
-from database.database import db, Patient, Doctor, Hospital, Visit, Record, Probability
+from database.database import db, Patient, Doctor, Admin, Visit, Record, Probability
 
 api = Blueprint("visite_api", __name__)
 

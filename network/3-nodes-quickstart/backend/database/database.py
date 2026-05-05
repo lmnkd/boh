@@ -25,6 +25,7 @@ class User(db.Model):
     # relations
     patient = db.relationship('Patient', backref='user', uselist=False)
     doctor = db.relationship('Doctor', backref='user', uselist=False)
+    admin = db.relationship('Admin', backref='user', uselist=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -71,12 +72,14 @@ class Doctor(db.Model):
 
 
 # =========================
-# 🏥 HOSPITAL
+# 🏥 Autorità
 # =========================
-class Hospital(db.Model):
-    __tablename__ = 'hospitals'
+class Admin(db.Model):
+    __tablename__ = 'admins'
 
     id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
 
     nome = db.Column(db.String(255), nullable=False)
     indirizzo = db.Column(db.String(255))
@@ -192,7 +195,14 @@ def seed_data():
     )
     u2.set_password("password123")
 
-    db.session.add_all([u1, u2])
+    u3 = User(
+        wallet_address="0x7777777777777777777777777777777777777777",
+        email="autorita@test.com",
+        role="ADMIN"
+    )
+    u3.set_password("password123")
+
+    db.session.add_all([u1, u2, u3])
     db.session.commit()
 
     p1 = Patient(
@@ -209,7 +219,13 @@ def seed_data():
         cognome="Verdi"
     )
 
-    db.session.add_all([p1, d1])
+    a1 = Admin(
+        user_id=u3.id,
+        nome="Autorita",
+        indirizzo="Via Roma 123, Milano"
+    )
+
+    db.session.add_all([p1, d1, a1])
     db.session.commit()
 
     print("✅ Seed completato!")

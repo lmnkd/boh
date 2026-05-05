@@ -6,7 +6,7 @@ from web3 import Web3
 
 from blockchain.config import ACCOUNT, w3
 from blockchain.contract import get_contract
-from database.database import db, Patient, Doctor, Hospital, Visit, Record, Probability
+from database.database import db, Patient, Doctor, Admin, Visit, Record, Probability
 
 api = Blueprint("api", __name__)
 
@@ -134,22 +134,22 @@ def create_patient():
 
 
 
-@api.route("/hospitals", methods=["GET"])
-def list_hospitals():
-    hospitals = Hospital.query.all()
-    return jsonify([model_to_dict(h, ["id", "nome", "indirizzo"]) for h in hospitals])
+@api.route("/admins", methods=["GET"])
+def list_admins():
+    admins = Admin.query.all()
+    return jsonify([model_to_dict(a, ["id", "nome", "indirizzo"]) for a in admins])
 
 
-@api.route("/hospitals/<int:hospital_id>", methods=["GET"])
-def get_hospital(hospital_id):
-    hospital = Hospital.query.get(hospital_id)
-    if not hospital:
-        return jsonify({"error": "Hospital not found"}), 404
-    return jsonify(model_to_dict(hospital, ["id", "nome", "indirizzo"]))
+@api.route("/admins/<int:admin_id>", methods=["GET"])
+def get_admin(admin_id):
+    admin = Admin.query.get(admin_id)
+    if not admin:
+        return jsonify({"error": "Admin not found"}), 404
+    return jsonify(model_to_dict(admin, ["id", "nome", "indirizzo"]))
 
 
-@api.route("/hospitals", methods=["POST"])
-def create_hospital():
+@api.route("/admins", methods=["POST"])
+def create_admin():
     data = request.get_json() or {}
     nome = data.get("nome")
     indirizzo = data.get("indirizzo")
@@ -157,16 +157,16 @@ def create_hospital():
     if not nome:
         return jsonify({"error": "nome è obbligatorio"}), 400
 
-    hospital = Hospital(nome=nome, indirizzo=indirizzo)
+    admin = Admin(nome=nome, indirizzo=indirizzo)
 
     try:
-        db.session.add(hospital)
+        db.session.add(admin)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Hospital già esistente"}), 409
+        return jsonify({"error": "Admin già esistente"}), 409
 
-    return jsonify(model_to_dict(hospital, ["id", "nome", "indirizzo"])), 201
+    return jsonify(model_to_dict(admin, ["id", "nome", "indirizzo"])), 201
 
 
 @api.route("/contract/register", methods=["POST"])

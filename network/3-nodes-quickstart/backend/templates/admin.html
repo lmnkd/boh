@@ -1,0 +1,21 @@
+<div class="main-css">
+    <h1>Bentornato {{ admin.nome }}</h1>
+
+    <section>
+        <h2>Visite</h2>
+        {% if visits %}
+            <ul>
+                {% for visit in visits %}
+                    <li>
+                        Visita #{{ visit.id }} - Medico: {{ visit.doctor.nome }} {{ visit.doctor.cognome }} - Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                        {% if visit.confirmed %}- Confermata{% else %}- In attesa di conferma{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Non ci sono visite nel sistema.</p>
+        {% endif %}
+    </section>
+
+    <a href="/">Torna alla pagina iniziale</a>
+</div>
