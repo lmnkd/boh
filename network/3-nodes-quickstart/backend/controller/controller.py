@@ -238,7 +238,7 @@ def propose_record():
             bytes32_from_value(data_hash),
         ).transact(tx_params(from_address))
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.RecordProposed().processReceipt(receipt)
+        events = get_contract().events.RecordProposed().process_receipt(receipt)
         if not events:
             raise ValueError("Evento RecordProposed non trovato")
         blockchain_id = events[0].args.recordId
@@ -279,7 +279,7 @@ def vote_record(record_id):
     try:
         tx_hash = get_contract().functions.vote(record.blockchain_id, bool(approve)).transact(tx_params(from_address))
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.RecordFinalized().processReceipt(receipt)
+        events = get_contract().events.RecordFinalized().process_receipt(receipt)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
@@ -330,7 +330,7 @@ def create_probability():
     try:
         tx_hash = get_contract().functions.updateProbability(record.blockchain_id, int(prior), int(posterior)).transact(tx_params(from_address))
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.ProbabilityUpdated().processReceipt(receipt)
+        events = get_contract().events.ProbabilityUpdated().process_receipt(receipt)
         if not events:
             raise ValueError("Evento ProbabilityUpdated non trovato")
         blockchain_id = events[0].args.probId

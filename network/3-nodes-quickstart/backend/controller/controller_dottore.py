@@ -4,6 +4,7 @@ from web3 import Web3
 from eth_account.messages import encode_defunct
 
 from blockchain.config import w3
+from blockchain.contract import get_contract
 from database.database import db, Doctor, User
 
 api = Blueprint("dottore_api", __name__)
@@ -19,8 +20,14 @@ def normalize_address(addr):
     return Web3.to_checksum_address(addr)
 
 
-def model_to_dict(obj, fields):
-    return {field: getattr(obj, field) for field in fields}
+def tx_params(from_address=None):
+    params = {
+        "from": normalize_address(from_address) if from_address else normalize_address(w3.eth.accounts[0]),
+        "gas": 5_000_000,
+    }
+    if w3.eth.chain_id is not None:
+        params["chainId"] = w3.eth.chain_id
+    return params
 
 
 # ----------------------------
@@ -96,6 +103,17 @@ def register_doctor():
 
     db.session.add(doctor)
     db.session.commit()
+
+    # -------------------------  
+    # 3. ASSEGNA RUOLO NEL CONTRATTO
+    # -------------------------
+    try:
+        contract = get_contract()
+        tx_hash = contract.functions.addDoctor(normalize_address(user.wallet_address)).transact(tx_params())
+        w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+    except Exception as e:
+        # Se fallisce, logga ma non fallire la registrazione
+        print(f"Warning: Failed to assign DOCTOR_ROLE to {user.wallet_address}: {e}")
 
     return jsonify({
         "message": "Doctor creato con successo",
