@@ -15,6 +15,7 @@ with open(Path(__file__).resolve().parent / "abi.json") as f:
 
 def get_contract():
     address = get_contract_address()
+    
 
     if not address:
         raise Exception("❌ Contratto non ancora deployato")

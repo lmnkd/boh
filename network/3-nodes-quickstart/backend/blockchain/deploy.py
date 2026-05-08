@@ -25,17 +25,9 @@ bytecode = "0x60806040523480156200001157600080fd5b5060405162003c1038038062003c10
 # Questo script si connette a un nodo Quorum, compila il contratto e lo deploya, specificando i validatori come argomenti o usando gli account disponibili.
 
 def deploy_contract(validators):
-    """
-    Deploy del contratto HealthDataValidator su Quorum.
-    
-    Args:
-        validators: List di indirizzi dei validatori
-        
-    Returns:
-        address: Indirizzo del contratto deployato
-    """
-    
-    print(f"📝 Creazione istanza contratto...")
+
+    log("📝 Creazione contratto...")
+
     Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
 
     print(bytecode)
