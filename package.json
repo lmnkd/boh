@@ -1,6 +1,0 @@
-{
-  "name": "contracts",
-  "dependencies": {
-    "@openzeppelin/contracts": "^4.9.6"
-  }
-}

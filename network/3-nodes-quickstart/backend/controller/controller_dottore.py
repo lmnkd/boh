@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from web3 import Web3
 from eth_account.messages import encode_defunct
@@ -6,6 +6,7 @@ from eth_account.messages import encode_defunct
 from blockchain.config import w3
 from blockchain.contract import get_contract
 from database.database import db, Doctor, User
+
 
 api = Blueprint("dottore_api", __name__)
 
@@ -77,46 +78,168 @@ def get_doctor(doctor_id):
 @api.route("/register-doctor", methods=["POST"])
 def register_doctor():
 
-    data = request.get_json()
+    print("===== START register_doctor =====", flush=True)
 
-    # -------------------------
-    # 1. CREA USER
-    # -------------------------
-    user = User(
-        email=data["email"],
-        wallet_address=data["wallet_address"],
-        role="DOCTOR"
-    )
-    user.set_password(data["password"])
-
-    db.session.add(user)
-    db.session.commit()  # serve per ottenere user.id
-
-    # -------------------------
-    # 2. CREA DOCTOR
-    # -------------------------
-    doctor = Doctor(
-        user_id=user.id,
-        nome=data["nome"],
-        cognome=data["cognome"]
-    )
-
-    db.session.add(doctor)
-    db.session.commit()
-
-    # -------------------------  
-    # 3. ASSEGNA RUOLO NEL CONTRATTO
-    # -------------------------
     try:
-        contract = get_contract()
-        tx_hash = contract.functions.addDoctor(normalize_address(user.wallet_address)).transact(tx_params())
-        w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-    except Exception as e:
-        # Se fallisce, logga ma non fallire la registrazione
-        print(f"Warning: Failed to assign DOCTOR_ROLE to {user.wallet_address}: {e}")
 
-    return jsonify({
-        "message": "Doctor creato con successo",
-        "doctor_id": doctor.id,
-        "user_id": user.id
-    }), 201
+        # -------------------------
+        # LETTURA JSON
+        # -------------------------
+        data = request.get_json()
+
+        print("JSON ricevuto", flush=True)
+        print(f"Dati ricevuti: {data}", flush=True)
+
+        # -------------------------
+        # 1. CREA USER
+        # -------------------------
+        user = User(
+            email=data["email"],
+            wallet_address=data["wallet_address"],
+            role="DOCTOR"
+        )
+
+        print("Oggetto User creato", flush=True)
+
+        user.set_password(data["password"])
+
+        db.session.add(user)
+        db.session.commit()
+
+        print(f"User salvato con id {user.id}", flush=True)
+
+        # -------------------------
+        # 2. CREA DOCTOR
+        # -------------------------
+        doctor = Doctor(
+            user_id=user.id,
+            nome=data["nome"],
+            cognome=data["cognome"]
+        )
+
+        db.session.add(doctor)
+        db.session.commit()
+
+        print(f"Doctor salvato con id {doctor.id}", flush=True)
+
+        # =========================================================
+        # 3. ASSEGNA RUOLO DOCTOR NEL CONTRATTO
+        # =========================================================
+
+        print("PRIMA TRY DOCTOR", flush=True)
+
+        try:
+
+            print("ENTRATO TRY DOCTOR", flush=True)
+
+            contract = get_contract()
+
+            print("Contract ottenuto", flush=True)
+
+            normalized_address = normalize_address(
+                user.wallet_address
+            )
+
+            print(
+                f"Address normalizzato: {normalized_address}",
+                flush=True
+            )
+
+            params = tx_params()
+
+            print(f"TX PARAMS: {params}", flush=True)
+
+            tx_hash = contract.functions.addDoctor(
+                normalized_address
+            ).transact(params)
+
+            print(
+                f"TX HASH DOCTOR: {tx_hash.hex()}",
+                flush=True
+            )
+
+            receipt = w3.eth.wait_for_transaction_receipt(
+                tx_hash,
+                timeout=60
+            )
+
+            print(
+                f"TRANSACTION DOCTOR MINATA: {receipt}",
+                flush=True
+            )
+
+        except Exception as e:
+
+            print(
+                f"ERRORE addDoctor: {str(e)}",
+                flush=True
+            )
+
+        print("DOPO TRY DOCTOR", flush=True)
+
+        # =========================================================
+        # 4. ASSEGNA RUOLO VALIDATOR NEL CONTRATTO
+        # =========================================================
+
+        print("PRIMA TRY VALIDATOR", flush=True)
+
+        try:
+
+            print("ENTRATO TRY VALIDATOR", flush=True)
+
+            contract = get_contract()
+
+            normalized_address = normalize_address(
+                user.wallet_address
+            )
+
+            tx_hash = contract.functions.addValidator(
+                normalized_address
+            ).transact(tx_params())
+
+            print(
+                f"TX HASH VALIDATOR: {tx_hash.hex()}",
+                flush=True
+            )
+
+            receipt = w3.eth.wait_for_transaction_receipt(
+                tx_hash,
+                timeout=60
+            )
+
+            print(
+                f"TRANSACTION VALIDATOR MINATA: {receipt}",
+                flush=True
+            )
+
+        except Exception as e:
+
+            print(
+                f"ERRORE addValidator: {str(e)}",
+                flush=True
+            )
+
+        print("DOPO TRY VALIDATOR", flush=True)
+
+        # =========================================================
+        # RETURN
+        # =========================================================
+
+        print("ARRIVATO AL JSONIFY FINALE", flush=True)
+
+        return jsonify({
+            "message": "Doctor creato con successo",
+            "doctor_id": doctor.id,
+            "user_id": user.id
+        }), 201
+
+    except Exception as e:
+
+        print(
+            f"ERRORE GENERALE register_doctor: {str(e)}",
+            flush=True
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
