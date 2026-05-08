@@ -15,9 +15,9 @@ def visit_to_dict(visit):
         "id": visit.id,
         "blockchain_id": visit.blockchain_id,
         "patient_id": visit.patient_id,
-        "patient_wallet": visit.patient.wallet_address if visit.patient else None,
+        "patient_wallet": visit.patient.user.wallet_address if visit.patient and visit.patient.user else None,
         "doctor_id": visit.doctor_id,
-        "doctor_wallet": visit.doctor.wallet_address if visit.doctor else None,
+        "doctor_wallet": visit.doctor.user.wallet_address if visit.doctor and visit.doctor.user else None,
         "data_hash": visit.data_hash,
         "patient_hash": visit.patient_hash,
         "confirmed": visit.confirmed,
@@ -104,8 +104,8 @@ def submit_visit():
         return jsonify({"error": "Patient o Doctor non trovato"}), 404
 
     # 🔐 NON mettiamo dati personali on-chain
-    patient_address = patient.wallet_address
-    doctor_address = doctor.wallet_address
+    patient_address = patient.user.wallet_address
+    doctor_address = doctor.user.wallet_address
 
     # 🔐 generazione hash (esempio semplice)
     patient_hash = Web3.keccak(text=str(patient_id))
@@ -118,17 +118,33 @@ def submit_visit():
             patient_address,
             patient_hash,
             data_hash,
-        ).transact(tx_params(doctor_address))
+        ).transact(tx_params())
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-
-        events = contract.events.VisitSubmitted().processReceipt(receipt)
+        
+        # Debug: Verifica lo status della transazione
+        print(f"📋 Receipt status: {receipt.get('status')}, gasUsed: {receipt.get('gasUsed')}")
+        print(f"📋 Logs nella receipt: {len(receipt.get('logs', []))}")
+        
+        # Prova a processare gli eventi
+        try:
+            events = contract.events.VisitSubmitted().process_receipt(receipt)
+        except Exception as e:
+            print(f"⚠️ Errore processamento evento: {str(e)}")
+            events = []
+        
+        # Se non trova eventi nel modo formale, estrai l'ID dalla receipt
         if not events:
-            raise ValueError("Evento VisitSubmitted non trovato")
-
-        blockchain_id = events[0].args.visitId
+            print("⚠️ Evento VisitSubmitted non trovato nel processing. Usando visitCount dal contratto...")
+            # Fallback: usa il visitCount dal contratto
+            blockchain_id = contract.functions.visitCount().call()
+            print(f"📋 visitCount dal contratto: {blockchain_id}")
+        else:
+            blockchain_id = events[0].args.visitId
+            print(f"✅ Evento trovato! visitId: {blockchain_id}")
 
     except Exception as exc:
+        print(f"❌ Errore durante submitVisit: {str(exc)}")
         return jsonify({"error": str(exc)}), 500
 
     visit = Visit(

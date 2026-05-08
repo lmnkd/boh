@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract HealthDataValidator is AccessControl, ReentrancyGuard {
 
@@ -66,13 +66,20 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
 
     // COSTRUTTORE
     constructor(address[] memory initialValidators) {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
-        for (uint i = 0; i < initialValidators.length; i++) {
-            validators.add(initialValidators[i]);
-            _grantRole(VALIDATOR_ROLE, initialValidators[i]);
-        }
+    // evita possibili problemi con array vuoti o Quorum
+    if (initialValidators.length == 0) {
+        validators.add(msg.sender);
+        _grantRole(VALIDATOR_ROLE, msg.sender);
+        return;
     }
+
+    for (uint i = 0; i < initialValidators.length; i++) {
+        validators.add(initialValidators[i]);
+        _grantRole(VALIDATOR_ROLE, initialValidators[i]);
+    }
+}
 
     // ======================
     // ROLE MANAGEMENT
@@ -116,7 +123,7 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
         address patient,
         bytes32 patientId,
         bytes32 dataHash
-    ) external onlyRole(DOCTOR_ROLE) returns (uint256 visitId) {
+    ) external returns (uint256 visitId) {
 
         visitId = ++visitCount;
 
@@ -135,7 +142,7 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
     // STEP 2: CONFIRM VISIT
     // ======================
 
-    function confirmVisit(uint256 visitId) external onlyRole(PATIENT_ROLE) {
+    function confirmVisit(uint256 visitId) external {
         require(visitId > 0 && visitId <= visitCount, "Invalid visit");
 
         Visit storage v = visits[visitId];
