@@ -26,7 +26,6 @@ bytecode = "0x60806040523480156200001157600080fd5b5060405162003c1038038062003c10
 
 def deploy_contract(validators):
 
-    log("📝 Creazione contratto...")
 
     Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
 
