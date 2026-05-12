@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
+from eth_account import Account
 
 db = SQLAlchemy()
 
@@ -15,6 +16,7 @@ class User(db.Model):
 
     wallet_address = db.Column(db.String(255), unique=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
+    private_key = db.Column(db.String(255), nullable=True)  # Solo per test, non in produzione!
 
     password_hash = db.Column(db.String(255), nullable=False)
 
@@ -181,11 +183,15 @@ def create_app_db(app: Flask):
 def seed_data():
     print("🌱 Seeding database...")
 
+    w1 = Account.create()
+    
     u1 = User(
-        wallet_address="0x1111111111111111111111111111111111111111",
+        wallet_address=w1.address,
         email="mario.rossi@test.com",
-        role="PATIENT"
+        role="PATIENT",
+        private_key= w1.key.hex()
     )
+
     u1.set_password("password123")
 
     u2 = User(

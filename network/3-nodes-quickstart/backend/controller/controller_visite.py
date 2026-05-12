@@ -3,7 +3,7 @@ from datetime import date, datetime
 from flask import Blueprint, jsonify, request, render_template
 from sqlalchemy.exc import IntegrityError
 from web3 import Web3
-
+from database.database import db, User, Patient, Doctor, Admin, Visit, Record, Probability
 from blockchain.config import ACCOUNT, w3
 from blockchain.contract import get_contract
 from database.database import db, Patient, Doctor, Admin, Visit, Record, Probability
@@ -168,21 +168,83 @@ def submit_visit():
 
 @api.route("/visits/<int:visit_id>/confirm", methods=["POST"])
 def confirm_visit(visit_id):
-    data = request.get_json() or {}
-    from_address = data.get("from_address")
-    visit = Visit.query.get(visit_id)
 
+    visit = Visit.query.get(visit_id)
     if not visit:
         return jsonify({"error": "Visit non trovato"}), 404
 
+    patient = Patient.query.get(visit.patient_id)
+    if not patient:
+        return jsonify({"error": "Paziente non trovato"}), 404
+
+    user = User.query.get(patient.user_id)
+
+    print("=== DEBUG USER ===", flush=True)
+    print("wallet:", user.wallet_address, flush=True)
+    print("has_private_key:", bool(user.private_key), flush=True)
+
+    if not user or not user.private_key:
+        return jsonify({"error": "Wallet paziente non trovato"}), 404
+
     try:
-        tx_hash = get_contract().functions.confirmVisit(visit.blockchain_id).transact(tx_params(from_address))
+        contract = get_contract()
+
+        nonce = w3.eth.get_transaction_count(user.wallet_address)
+
+        print("=== DEBUG NONCE ===", nonce, flush=True)
+
+        tx = contract.functions.confirmVisit(
+            visit.blockchain_id
+        ).build_transaction({
+            "from": user.wallet_address,
+            "nonce": nonce,
+            "gas": 200000,
+            "gasPrice": 0
+        })
+
+        print("=== DEBUG TX ===", flush=True)
+        print(tx, flush=True)
+
+        signed = w3.eth.account.sign_transaction(tx, user.private_key)
+
+        print("=== DEBUG SIGNED TX ===", flush=True)
+        print("raw tx size:", len(signed.raw_transaction), flush=True)
+
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+
+        print("=== TX SENT ===", tx_hash.hex(), flush=True)
+
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+
+        print("=== RECEIPT ===", flush=True)
+        print("status:", receipt.status, flush=True)
+        print("blockNumber:", receipt.blockNumber, flush=True)
+        print("gasUsed:", receipt.gasUsed, flush=True)
+        print("txHash:", receipt.transactionHash.hex(), flush=True)
+
+        # 🔥 DEBUG STATUS LOGICO
+        if receipt.status == 1:
+            print("✅ TRANSAZIONE SUCCESSO", flush=True)
+        else:
+            print("❌ TRANSAZIONE FALLITA (REVERT)", flush=True)
+
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        print("❌ EXCEPTION:", str(exc), flush=True)
+        return jsonify({
+            "error": str(exc),
+            "step": "transaction_failed"
+        }), 500
 
     visit.confirmed = True
     visit.blockchain_tx = tx_hash.hex()
     db.session.commit()
 
-    return jsonify({"status": "SUCCESS", "visit": visit_to_dict(visit), "receipt": {"blockNumber": receipt.blockNumber}})
+    return jsonify({
+        "status": "SUCCESS",
+        "tx_hash": tx_hash.hex(),
+        "receipt": {
+            "status": receipt.status,
+            "blockNumber": receipt.blockNumber,
+            "gasUsed": receipt.gasUsed
+        }
+    })
