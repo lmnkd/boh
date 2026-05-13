@@ -91,6 +91,22 @@ def get_visit(visit_id):
 def submit_visit():
     data = request.get_json() or {}
 
+    # 1. Recupero dati
+    p_max = data.get("pressione_max")
+    p_min = data.get("pressione_min")
+    battiti = data.get("battiti")
+    note = data.get("note", "")
+
+    # 2. VALIDAZIONE (Il "Controllo")
+    try:
+        p_max, p_min, battiti = int(p_max), int(p_min), int(battiti)
+        if p_max <= p_min:
+            return jsonify({"error": "La pressione massima deve essere superiore alla minima"}), 400
+        if not (40 <= p_max <= 250) or not (30 <= battiti <= 220):
+            return jsonify({"error": "Parametri vitali fuori range fisiologico"}), 400
+    except (ValueError, TypeError):
+        return jsonify({"error": "I parametri medici devono essere numeri validi"}), 400
+
     patient_id = data.get("patient_id")
     doctor_id = data.get("doctor_id")
 
@@ -146,11 +162,21 @@ def submit_visit():
     except Exception as exc:
         print(f"❌ Errore durante submitVisit: {str(exc)}")
         return jsonify({"error": str(exc)}), 500
+    
+    # 3. HASHING SICURO
+    # Includiamo i parametri medici nell'hash della blockchain. 
+    # Così, se qualcuno modifica i dati nel DB locale, l'hash non corrisponderà più!
+    data_content = f"{patient_id}-{doctor_id}-{p_max}-{p_min}-{battiti}-{datetime.utcnow()}"
+    data_hash = Web3.keccak(text=data_content)
 
     visit = Visit(
         blockchain_id=blockchain_id,
         patient_id=patient.id,
         doctor_id=doctor.id,
+        pressione_max=p_max,
+        pressione_min=p_min,
+        battiti=battiti,
+        note=note,
         patient_hash=patient_hash.hex(),
         data_hash=data_hash.hex(),
         confirmed=False,

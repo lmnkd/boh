@@ -28,6 +28,26 @@
                     </select>
                     <span class="material-icons-round input-icon">person</span>
                 </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-group">
+                        <input type="number" id="pressione_max" placeholder="Sistolica (Max)" required min="50" max="250">
+                        <span class="material-icons-round input-icon">speed</span>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="pressione_min" placeholder="Diastolica (Min)" required min="30" max="150">
+                        <span class="material-icons-round input-icon">low_priority</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <input type="number" id="battiti" placeholder="Battiti cardiaci (BPM)" required min="30" max="220">
+                    <span class="material-icons-round input-icon">favorite</span>
+                </div>
+
+                <div class="input-group">
+                    <textarea id="note" placeholder="Note cliniche..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; min-height: 80px;"></textarea>
+                </div>
                 <input type="hidden" id="doctor_id" value="{{ doctor.id }}">
                 <button type="submit" class="btn-primary">Crea Visita</button>
             </form>
@@ -48,7 +68,14 @@
                                 </span>
                             </div>
                             <div class="visit-details">
-                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee;">
+                                    <span>🩸 <b>{{ visit.pressione_max }}/{{ visit.pressione_min }}</b> mmHg</span> | 
+                                    <span>💓 <b>{{ visit.battiti }}</b> BPM</span>
+                                </div>
+                                {% if visit.note %}
+                                    <p style="font-style: italic; font-size: 12px; margin-top: 5px;">Note: {{ visit.note }}</p>
+                                {% endif %}
                             </div>
                             {% if visit.created_at %}
                                 <div class="visit-meta">
@@ -97,7 +124,11 @@
             e.preventDefault();
             const data = {
                 patient_id: document.getElementById("patient_id").value,
-                doctor_id: document.getElementById("doctor_id").value
+                doctor_id: document.getElementById("doctor_id").value,
+                pressione_max: document.getElementById("pressione_max").value,
+                pressione_min: document.getElementById("pressione_min").value,
+                battiti: document.getElementById("battiti").value,
+                note: document.getElementById("note").value
             };
 
             const res = await fetch("/api/visits", {

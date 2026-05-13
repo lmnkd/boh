@@ -27,7 +27,14 @@
                                 <span class="visit-title">Visita #{{ visit.id }}</span>
                             </div>
                             <div class="visit-details">
-                                <strong>Dottore:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee;">
+                                    <span>🩸 <b>{{ visit.pressione_max }}/{{ visit.pressione_min }}</b> mmHg</span> | 
+                                    <span>💓 <b>{{ visit.battiti }}</b> BPM</span>
+                                </div>
+                                {% if visit.note %}
+                                    <p style="font-style: italic; font-size: 12px; margin-top: 5px;">Note: {{ visit.note }}</p>
+                                {% endif %}
                             </div>
                             {% if visit.created_at %}
                                 <div class="visit-meta">
@@ -59,7 +66,14 @@
                                 <span class="visit-title">Visita #{{ visit.id }}</span>
                             </div>
                             <div class="visit-details">
-                                <strong>Dottore:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee;">
+                                    <span>🩸 <b>{{ visit.pressione_max }}/{{ visit.pressione_min }}</b> mmHg</span> | 
+                                    <span>💓 <b>{{ visit.battiti }}</b> BPM</span>
+                                </div>
+                                {% if visit.note %}
+                                    <p style="font-style: italic; font-size: 12px; margin-top: 5px;">Note: {{ visit.note }}</p>
+                                {% endif %}
                             </div>
                             {% if visit.created_at %}
                                 <div class="visit-meta">

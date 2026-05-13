@@ -100,6 +100,11 @@ class Visit(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
 
+    pressione_max = db.Column(db.Integer)
+    pressione_min = db.Column(db.Integer)
+    battiti = db.Column(db.Integer)
+    note = db.Column(db.Text)
+
     data_hash = db.Column(db.String(66), nullable=False)
     patient_hash = db.Column(db.String(66), nullable=False)
 
