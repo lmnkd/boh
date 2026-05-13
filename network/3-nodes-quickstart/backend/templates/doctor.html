@@ -16,6 +16,7 @@
         <h1>Bentornato, Dottore</h1>
         <p class="subtitle">{{ doctor.nome }} {{ doctor.cognome }}</p>
 
+        <!-- CREA VISITA -->
         <section class="section-area">
             <h2><span class="material-icons-round">add_box</span>Crea una nuova visita</h2>
             <form id="visitForm">
@@ -35,6 +36,7 @@
 
         <hr>
 
+        <!-- LE TUE VISITE -->
         <section class="section-area">
             <h2><span class="material-icons-round">history_edu</span>Le tue visite</h2>
             {% if visits %}
@@ -44,7 +46,7 @@
                             <div class="visit-card-header">
                                 <span class="visit-title">Visita #{{ visit.id }}</span>
                                 <span class="status-badge {{ 'confirmed' if visit.confirmed else 'pending' }}">
-                                    {{ 'Sì' if visit.confirmed else 'In attesa' }}
+                                    {{ 'Confermata' if visit.confirmed else 'In attesa' }}
                                 </span>
                             </div>
                             <div class="visit-details">
@@ -58,23 +60,47 @@
                             {% endif %}
 
                             {% if visit.confirmed %}
-                                {% set record = visit.record %}
+                                {% set record = visit.records | first %}
                                 {% if not record %}
-                                    <button class="btn-primary btn-small" style="margin-top: 12px;" onclick="proposeRecord({{ visit.id }}, this)">
+                                    <button
+                                        class="btn-primary btn-small"
+                                        style="margin-top: 12px;"
+                                        data-visit-id="{{ visit.id }}"
+                                        onclick="proposeRecord(event)">
                                         <span class="material-icons-round" style="font-size: 16px;">gavel</span> Proponi Record
                                     </button>
                                 {% else %}
                                     <div class="blockchain-panel">
                                         <div><strong>Record #{{ record.id }}</strong> — Stato: <strong>{{ record.status }}</strong></div>
-                                        
+                                        <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                                            Voti: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                                        </div>
                                         {% if record.status == "PENDING" %}
-                                            <div class="action-row">
-                                                <button class="btn-primary btn-small btn-approve" onclick="voteRecord({{ record.id }}, true, this)">
+                                            <div class="action-row" style="margin-top: 10px;">
+                                                <button
+                                                    class="btn-primary btn-small btn-approve"
+                                                    data-record-id="{{ record.id }}"
+                                                    data-doctor-id="{{ doctor.id }}"
+                                                    onclick="voteRecord(event, true)">
                                                     ✅ Approva
                                                 </button>
-                                                <button class="btn-primary btn-small btn-reject" onclick="voteRecord({{ record.id }}, false, this)">
+                                                <button
+                                                    class="btn-primary btn-small btn-reject"
+                                                    data-record-id="{{ record.id }}"
+                                                    data-doctor-id="{{ doctor.id }}"
+                                                    onclick="voteRecord(event, false)">
                                                     ❌ Rifiuta
                                                 </button>
+                                            </div>
+                                        {% elif record.status == "APPROVED" %}
+                                            <div style="margin-top: 8px; color: green;">
+                                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">check_circle</span>
+                                                Record approvato in blockchain
+                                            </div>
+                                        {% elif record.status == "REJECTED" %}
+                                            <div style="margin-top: 8px; color: red;">
+                                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">cancel</span>
+                                                Record rifiutato
                                             </div>
                                         {% endif %}
                                     </div>
@@ -87,32 +113,48 @@
                 <p class="subtitle" style="text-align: center;">Non hai ancora creato visite.</p>
             {% endif %}
         </section>
+
         <hr>
 
-<section class="section-area">
-    <h2><span class="material-icons-round">how_to_vote</span>Visite da Validare</h2>
-    {% set votable = confirmed_visits | selectattr("records") | list %}
-    {% if votable %}
-        <ul class="visit-list">
-            {% for visit in votable %}
+        <!-- VISITE DA VALIDARE (tutti i dottori) -->
+        <section class="section-area">
+            <h2><span class="material-icons-round">how_to_vote</span>Visite da Validare</h2>
+
+            {% set pending_visits = [] %}
+            {% set approved_visits = [] %}
+            {% set rejected_visits = [] %}
+
+            {% for visit in confirmed_visits %}
                 {% set record = visit.records | first %}
                 {% if record %}
-                <li class="visit-card">
-                    <div class="visit-card-header">
-                        <span class="visit-title">Visita #{{ visit.id }}</span>
-                        <span class="status-badge {{ 'confirmed' if record.status == 'APPROVED' else 'pending' if record.status == 'PENDING' else 'rejected' }}">
-                            {{ record.status }}
-                        </span>
-                    </div>
-                    <div class="visit-details">
-                        <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
-                        <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
-                        <strong>Record #{{ record.id }}</strong> —
-                        Voti: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
-                    </div>
-
                     {% if record.status == "PENDING" %}
-                        <div class="action-row" style="margin-top: 12px;">
+                        {% set _ = pending_visits.append(visit) %}
+                    {% elif record.status == "APPROVED" %}
+                        {% set _ = approved_visits.append(visit) %}
+                    {% elif record.status == "REJECTED" %}
+                        {% set _ = rejected_visits.append(visit) %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            <!-- PENDING -->
+            {% if pending_visits %}
+                <h3 style="margin-bottom: 8px;">⏳ In attesa di voto</h3>
+                <ul class="visit-list">
+                    {% for visit in pending_visits %}
+                        {% set record = visit.records | first %}
+                        <li class="visit-card">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                                <span class="status-badge pending">PENDING</span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <strong>Record #{{ record.id }}</strong> —
+                                Voti: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                            </div>
+                            <div class="action-row" style="margin-top: 12px;">
                                 <button
                                     class="btn-primary btn-small btn-approve"
                                     data-record-id="{{ record.id }}"
@@ -127,26 +169,68 @@
                                     onclick="voteRecord(event, false)">
                                     ❌ Rifiuta
                                 </button>
-                        </div>
-                    {% elif record.status == "APPROVED" %}
-                        <div style="margin-top: 8px; color: green;">
-                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">check_circle</span>
-                            Record approvato e registrato in blockchain
-                        </div>
-                    {% elif record.status == "REJECTED" %}
-                        <div style="margin-top: 8px; color: red;">
-                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">cancel</span>
-                            Record rifiutato
-                        </div>
-                    {% endif %}
-                </li>
-                {% endif %}
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p class="subtitle" style="text-align: center;">Nessuna visita con record da validare.</p>
-    {% endif %}
-</section>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <!-- APPROVED -->
+            {% if approved_visits %}
+                <h3 style="margin: 16px 0 8px; color: green;">✅ Record Approvati</h3>
+                <ul class="visit-list">
+                    {% for visit in approved_visits %}
+                        {% set record = visit.records | first %}
+                        <li class="visit-card">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                                <span class="status-badge confirmed">APPROVED</span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <strong>Record #{{ record.id }}</strong> —
+                                Voti finali: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                            </div>
+                            <div style="margin-top: 8px; color: green; font-size: 13px;">
+                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">check_circle</span>
+                                Registrato in blockchain — Tx: <code style="font-size:11px;">{{ record.blockchain_tx[:20] }}...</code>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <!-- REJECTED -->
+            {% if rejected_visits %}
+                <h3 style="margin: 16px 0 8px; color: red;">❌ Record Rifiutati</h3>
+                <ul class="visit-list">
+                    {% for visit in rejected_visits %}
+                        {% set record = visit.records | first %}
+                        <li class="visit-card">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                                <span class="status-badge" style="background: #fee2e2; color: #dc2626;">REJECTED</span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                                <strong>Record #{{ record.id }}</strong> —
+                                Voti finali: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                            </div>
+                            <div style="margin-top: 8px; color: red; font-size: 13px;">
+                                <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">cancel</span>
+                                Record rifiutato dalla maggioranza
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if not pending_visits and not approved_visits and not rejected_visits %}
+                <p class="subtitle" style="text-align: center;">Nessuna visita con record presente.</p>
+            {% endif %}
+        </section>
 
         <button class="btn-primary btn-secondary" onclick="location.href='/'">Torna alla pagina iniziale</button>
     </div>
@@ -177,7 +261,9 @@
         });
     });
 
-    async function proposeRecord(visitId, btn) {
+    async function proposeRecord(event) {
+        const btn = event.currentTarget;
+        const visitId = btn.dataset.visitId;
         btn.disabled = true;
         btn.textContent = "⏳ Invio...";
 

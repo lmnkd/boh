@@ -60,6 +60,7 @@ def model_to_dict(model, fields):
         output[field] = value
     return output
 
+
 def record_to_dict(record):
     return {
         "id": record.id,
@@ -90,7 +91,7 @@ def probability_to_dict(prob):
 @api.route("/patients", methods=["GET"])
 def list_patients():
     patients = Patient.query.all()
-    return jsonify([model_to_dict(p, ["id", "wallet_address", "nome", "cognome", "data_nascita", "patient_hash", "created_at"]) for p in patients])
+    return jsonify([model_to_dict(p, ["id", "nome", "cognome", "data_nascita", "patient_hash", "created_at"]) for p in patients])
 
 
 @api.route("/patients/<int:patient_id>", methods=["GET"])
@@ -98,23 +99,21 @@ def get_patient(patient_id):
     patient = Patient.query.get(patient_id)
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
-    return jsonify(model_to_dict(patient, ["id", "wallet_address", "nome", "cognome", "data_nascita", "patient_hash", "created_at"]))
+    return jsonify(model_to_dict(patient, ["id", "nome", "cognome", "data_nascita", "patient_hash", "created_at"]))
 
 
 @api.route("/patients", methods=["POST"])
 def create_patient():
     data = request.get_json() or {}
-    wallet_address = normalize_address(data.get("wallet_address"))
     nome = data.get("nome")
     cognome = data.get("cognome")
     data_nascita = data.get("data_nascita")
     patient_hash = data.get("patient_hash")
 
-    if not wallet_address or not nome or not cognome or not patient_hash:
-        return jsonify({"error": "wallet_address, nome, cognome e patient_hash sono obbligatori"}), 400
+    if not nome or not cognome or not patient_hash:
+        return jsonify({"error": "nome, cognome e patient_hash sono obbligatori"}), 400
 
     patient = Patient(
-        wallet_address=wallet_address,
         nome=nome,
         cognome=cognome,
         data_nascita=data_nascita,
@@ -128,10 +127,7 @@ def create_patient():
         db.session.rollback()
         return jsonify({"error": "Patient già esistente"}), 409
 
-    return jsonify(model_to_dict(patient, ["id", "wallet_address", "nome", "cognome", "data_nascita", "patient_hash", "created_at"])), 201
-
-
-
+    return jsonify(model_to_dict(patient, ["id", "nome", "cognome", "data_nascita", "patient_hash", "created_at"])), 201
 
 
 @api.route("/admins", methods=["GET"])
@@ -202,101 +198,6 @@ def register_contract_role():
         },
     }), 201
 
-@api.route("/records", methods=["GET"])
-def list_records():
-    records = Record.query.all()
-    return jsonify([record_to_dict(r) for r in records])
-
-
-@api.route("/records/<int:record_id>", methods=["GET"])
-def get_record(record_id):
-    record = Record.query.get(record_id)
-    if not record:
-        return jsonify({"error": "Record not found"}), 404
-    return jsonify(record_to_dict(record))
-
-
-@api.route("/records", methods=["POST"])
-def propose_record():
-    data = request.get_json() or {}
-    visit_id = data.get("visit_id")
-    data_hash = data.get("data_hash")
-    from_address = data.get("from_address")
-
-    if not visit_id or not data_hash:
-        return jsonify({"error": "visit_id e data_hash sono obbligatori"}), 400
-
-    visit = Visit.query.get(visit_id)
-    if not visit:
-        return jsonify({"error": "Visit non trovato"}), 404
-    if not visit.confirmed:
-        return jsonify({"error": "Visit non confermato"}), 400
-
-    try:
-        tx_hash = get_contract().functions.proposeRecord(
-            visit.blockchain_id,
-            bytes32_from_value(data_hash),
-        ).transact(tx_params(from_address))
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.RecordProposed().process_receipt(receipt)
-        if not events:
-            raise ValueError("Evento RecordProposed non trovato")
-        blockchain_id = events[0].args.recordId
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    authority_wallet = normalize_address(from_address) if from_address else normalize_address(ACCOUNT)
-    record = Record(
-        blockchain_id=blockchain_id,
-        visit_id=visit.id,
-        authority_wallet=authority_wallet,
-        data_hash=data_hash,
-        status="PENDING",
-        approve_votes=0,
-        reject_votes=0,
-        blockchain_tx=tx_hash.hex(),
-    )
-
-    db.session.add(record)
-    db.session.commit()
-
-    return jsonify({"status": "SUCCESS", "record": record_to_dict(record)}), 201
-
-
-@api.route("/records/<int:record_id>/vote", methods=["POST"])
-def vote_record(record_id):
-    data = request.get_json() or {}
-    approve = data.get("approve")
-    from_address = data.get("from_address")
-
-    if approve is None:
-        return jsonify({"error": "approve è obbligatorio"}), 400
-
-    record = Record.query.get(record_id)
-    if not record:
-        return jsonify({"error": "Record non trovato"}), 404
-
-    try:
-        tx_hash = get_contract().functions.vote(record.blockchain_id, bool(approve)).transact(tx_params(from_address))
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.RecordFinalized().process_receipt(receipt)
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-    if approve:
-        record.approve_votes += 1
-    else:
-        record.reject_votes += 1
-
-    if events:
-        status_value = events[0].args.status
-        record.status = "APPROVED" if status_value == 1 else "REJECTED" if status_value == 2 else record.status
-
-    record.blockchain_tx = tx_hash.hex()
-    db.session.commit()
-
-    return jsonify({"status": "SUCCESS", "record": record_to_dict(record), "receipt": {"blockNumber": receipt.blockNumber}})
-
 
 @api.route("/probabilities", methods=["GET"])
 def list_probabilities():
@@ -328,7 +229,9 @@ def create_probability():
         return jsonify({"error": "Record non trovato"}), 404
 
     try:
-        tx_hash = get_contract().functions.updateProbability(record.blockchain_id, int(prior), int(posterior)).transact(tx_params(from_address))
+        tx_hash = get_contract().functions.updateProbability(
+            record.blockchain_id, int(prior), int(posterior)
+        ).transact(tx_params(from_address))
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
         events = get_contract().events.ProbabilityUpdated().process_receipt(receipt)
         if not events:
