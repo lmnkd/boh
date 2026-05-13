@@ -16,8 +16,17 @@
         <h1>Pannello Admin</h1>
         <p class="subtitle">Bentornato, {{ admin.nome }}</p>
 
+        <!-- VALIDATORI -->
         <section class="section-area">
-            <h2><span class="material-icons-round">analytics</span>Registro Visite Totale</h2>
+            <h2><span class="material-icons-round">verified_user</span> Validatori Blockchain</h2>
+            <div id="validators-list">
+                <p class="subtitle">Caricamento...</p>
+            </div>
+        </section>
+
+        <!-- VISITE -->
+        <section class="section-area">
+            <h2><span class="material-icons-round">analytics</span> Registro Visite Totale</h2>
             {% if visits %}
                 <ul class="visit-list">
                     {% for visit in visits %}
@@ -48,5 +57,56 @@
             Torna alla Home
         </button>
     </div>
+
+<script>
+async function loadValidators() {
+    const container = document.getElementById("validators-list");
+
+    try {
+        const res = await fetch("/validators");
+        const data = await res.json();
+
+        if (!res.ok) {
+            container.innerHTML = `<p style="color:red">Errore: ${data.error}</p>`;
+            return;
+        }
+
+        if (data.validators.length === 0) {
+            container.innerHTML = `<p class="subtitle">Nessun validatore registrato.</p>`;
+            return;
+        }
+
+        const ul = document.createElement("ul");
+        ul.className = "visit-list";
+
+        data.validators.forEach(v => {
+            const li = document.createElement("li");
+            li.className = "visit-card";
+            li.innerHTML = `
+                <div class="visit-card-header">
+                    <span class="visit-title">
+                        ${v.nome} ${v.cognome}
+                    </span>
+                    <span class="status-badge confirmed">Validatore</span>
+                </div>
+                <div class="visit-details">
+                    <strong>Email:</strong> ${v.email || "—"}<br>
+                    <strong>Wallet:</strong> <code>${v.wallet_address}</code>
+                </div>
+            `;
+            ul.appendChild(li);
+        });
+
+        container.innerHTML = "";
+        container.appendChild(ul);
+
+    } catch (err) {
+        console.error("Errore caricamento validatori:", err);
+        container.innerHTML = `<p style="color:red">Errore di connessione</p>`;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadValidators);
+</script>
 </body>
 </html>
