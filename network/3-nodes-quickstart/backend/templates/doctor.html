@@ -35,6 +35,7 @@
 
         <hr>
 
+<<<<<<< HEAD
         <section class="section-area">
             <h2><span class="material-icons-round">history_edu</span>Le tue visite</h2>
             {% if visits %}
@@ -45,6 +46,39 @@
                                 <span class="visit-title">Visita #{{ visit.id }}</span>
                                 <span class="status-badge {{ 'confirmed' if visit.confirmed else 'pending' }}">
                                     {{ 'Sì' if visit.confirmed else 'In attesa' }}
+=======
+            <button type="submit">Crea Visita</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Le tue visite</h2>
+        {% if visits %}
+            <ul>
+                {% for visit in visits %}
+                    <li>
+                        <strong>Visita #{{ visit.id }}</strong> -
+                        Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                        {% if visit.created_at %} - Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                        - Confermata:
+                        <span style="color: {{ 'green' if visit.confirmed else 'orange' }}">
+                            {{ 'Sì' if visit.confirmed else 'In attesa' }}
+                        </span>
+
+                        {% if visit.confirmed %}
+                            {% set record = visit.records | first %}
+
+                            {% if not record %}
+                                <button
+                                    class="btn-propose"
+                                    data-visit-id="{{ visit.id }}"
+                                    onclick="proposeRecord(event)">
+                                    📋 Proponi Record
+                                </button>
+                            {% else %}
+                                <span>Record #{{ record.id }} —
+                                    Stato: <strong>{{ record.status }}</strong>
+>>>>>>> b8916252f25356a62f779b047bd84d6304cf3a64
                                 </span>
                             </div>
                             <div class="visit-details">
@@ -57,11 +91,26 @@
                                 </div>
                             {% endif %}
 
+<<<<<<< HEAD
                             {% if visit.confirmed %}
                                 {% set record = visit.record %}
                                 {% if not record %}
                                     <button class="btn-primary btn-small" style="margin-top: 12px;" onclick="proposeRecord({{ visit.id }}, this)">
                                         <span class="material-icons-round" style="font-size: 16px;">gavel</span> Proponi Record
+=======
+                                {% if record.status == "PENDING" %}
+                                    <button
+                                        class="btn-vote btn-approve"
+                                        data-record-id="{{ record.id }}"
+                                        onclick="voteRecord(event, true)">
+                                        ✅ Approva
+                                    </button>
+                                    <button
+                                        class="btn-vote btn-reject"
+                                        data-record-id="{{ record.id }}"
+                                        onclick="voteRecord(event, false)">
+                                        ❌ Rifiuta
+>>>>>>> b8916252f25356a62f779b047bd84d6304cf3a64
                                     </button>
                                 {% else %}
                                     <div class="blockchain-panel">
@@ -117,9 +166,12 @@
         });
     });
 
-    async function proposeRecord(visitId, btn) {
-        btn.disabled = true;
-        btn.textContent = "⏳ Invio...";
+
+async function proposeRecord(event) {
+    const btn = event.currentTarget;
+    const visitId = btn.dataset.visitId;
+    btn.disabled = true;
+    btn.textContent = "⏳ Invio...";
 
         try {
             const res = await fetch(`/api/visit/${visitId}/propose_record`, {
@@ -144,9 +196,17 @@
         }
     }
 
+<<<<<<< HEAD
     async function voteRecord(recordId, approve, btn) {
         btn.disabled = true;
         btn.textContent = "⏳...";
+=======
+async function voteRecord(event, approve) {
+    const btn = event.currentTarget;
+    const recordId = btn.dataset.recordId;
+    btn.disabled = true;
+    btn.textContent = "⏳ Votazione...";
+>>>>>>> b8916252f25356a62f779b047bd84d6304cf3a64
 
         try {
             const res = await fetch(`/api/records/${recordId}/vote`, {
