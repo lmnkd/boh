@@ -33,13 +33,13 @@
                         </span>
 
                         {% if visit.confirmed %}
-                            {# Cerca se esiste già un record per questa visita #}
-                            {% set record = visit.record %}
+                            {% set record = visit.records | first %}
 
                             {% if not record %}
                                 <button
                                     class="btn-propose"
-                                    onclick="proposeRecord({{ visit.id }}, this)">
+                                    data-visit-id="{{ visit.id }}"
+                                    onclick="proposeRecord(event)">
                                     📋 Proponi Record
                                 </button>
                             {% else %}
@@ -50,12 +50,14 @@
                                 {% if record.status == "PENDING" %}
                                     <button
                                         class="btn-vote btn-approve"
-                                        onclick="voteRecord({{ record.id }}, true, this)">
+                                        data-record-id="{{ record.id }}"
+                                        onclick="voteRecord(event, true)">
                                         ✅ Approva
                                     </button>
                                     <button
                                         class="btn-vote btn-reject"
-                                        onclick="voteRecord({{ record.id }}, false, this)">
+                                        data-record-id="{{ record.id }}"
+                                        onclick="voteRecord(event, false)">
                                         ❌ Rifiuta
                                     </button>
                                 {% endif %}
@@ -99,10 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// -----------------------------
-// PROPONI RECORD
-// -----------------------------
-async function proposeRecord(visitId, btn) {
+async function proposeRecord(event) {
+    const btn = event.currentTarget;
+    const visitId = btn.dataset.visitId;
     btn.disabled = true;
     btn.textContent = "⏳ Invio...";
 
@@ -132,10 +133,9 @@ async function proposeRecord(visitId, btn) {
     }
 }
 
-// -----------------------------
-// VOTA RECORD (2 step: build tx → sign → confirm)
-// -----------------------------
-async function voteRecord(recordId, approve, btn) {
+async function voteRecord(event, approve) {
+    const btn = event.currentTarget;
+    const recordId = btn.dataset.recordId;
     btn.disabled = true;
     btn.textContent = "⏳ Votazione...";
 
