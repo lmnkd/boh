@@ -171,22 +171,50 @@ def propose_record_for_visit(visit_id):
 def vote(record_id):
     data = request.get_json() or {}
     approve = data.get("approve")
+    doctor_id = data.get("doctor_id")
 
     if approve is None:
-        return jsonify({"error": "Campo 'approve' obbligatorio (true/false)"}), 400
+        return jsonify({"error": "Campo 'approve' obbligatorio"}), 400
+
+    if not doctor_id:
+        return jsonify({"error": "Campo 'doctor_id' obbligatorio"}), 400
 
     record = Record.query.get(record_id)
     if not record:
         return jsonify({"error": "Record not found"}), 404
 
     if record.status != "PENDING":
-        return jsonify({"error": f"Record non votabile, stato attuale: {record.status}"}), 400
+        return jsonify({"error": f"Record non votabile, stato: {record.status}"}), 400
 
     try:
-        # Risale al dottore tramite la visita
-        wallet_address, private_key = get_doctor_private_key(record.visit)
+        doctor = Doctor.query.get(doctor_id)
+        if not doctor:
+            return jsonify({"error": "Doctor non trovato"}), 404
+
+        user = User.query.get(doctor.user_id)
+        if not user or not user.private_key:
+            return jsonify({"error": "Private key non trovata"}), 400
+
+        wallet_address = user.wallet_address
+        private_key = user.private_key
 
         contract = get_contract()
+
+        print("\n===== VOTE DEBUG START =====")
+        print("Record DB id:", record.id)
+        print("Blockchain record id:", record.blockchain_id)
+        print("Voter:", wallet_address)
+        print("Approve:", approve)
+
+        already_voted = contract.functions.hasVoted(
+            record.blockchain_id,
+            Web3.to_checksum_address(wallet_address)
+        ).call()
+
+        print("Already voted:", already_voted)
+
+        if already_voted:
+            return jsonify({"error": "Hai già votato questo record"}), 409
 
         tx_data = contract.functions.vote(
             record.blockchain_id,
@@ -195,20 +223,34 @@ def vote(record_id):
 
         tx_hash, receipt = sign_and_send(tx_data, private_key)
 
-        if receipt.status == 0:
-            return jsonify({"error": "Transazione voto fallita on-chain (REVERT)"}), 400
+        print("TX HASH:", tx_hash.hex())
+        print("TX STATUS:", receipt.status)
+        print("BLOCK NUMBER:", receipt.blockNumber)
 
-        # Aggiorna contatori
-        if approve:
-            record.approve_votes += 1
-        else:
-            record.reject_votes += 1
+        # 🔥 STEP 1: stato immediato on-chain
+        state1 = contract.functions.getRecord(record.blockchain_id).call()
+        print("\nSTATE IMMEDIATO ON-CHAIN:")
+        print(state1)
 
-        # Legge lo stato aggiornato dal contratto
-        record_info = contract.functions.records(record.blockchain_id).call()
-        if record_info[3]:  # campo approved
+        import time
+        time.sleep(2)
+
+        # 🔥 STEP 2: stato dopo sync
+        state2 = contract.functions.getRecord(record.blockchain_id).call()
+        print("\nSTATE DOPO 2s:")
+        print(state2)
+
+        print("===== VOTE DEBUG END =====\n")
+
+        # 🔥 SYNC COMPLETO DA BLOCKCHAIN (NON DB LOCAL COUNTER)
+        record.approve_votes = int(state2[5])
+        record.reject_votes = int(state2[6])
+
+        status = int(state2[4])
+
+        if status == 1:
             record.status = "APPROVED"
-        elif record.reject_votes > 0:
+        elif status == 2:
             record.status = "REJECTED"
 
         db.session.commit()
@@ -221,41 +263,6 @@ def vote(record_id):
             "reject_votes": record.reject_votes,
         }), 200
 
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        print("❌ ERROR vote:", e)
-        return jsonify({"error": str(e)}), 500
-
-
-# -----------------------------
-# POST /fund_address
-# -----------------------------
-@api.route("/fund_address", methods=["POST"])
-def fund_address():
-    data = request.get_json() or {}
-    address = data.get("address")
-
-    if not address:
-        return jsonify({"error": "address required"}), 400
-
-    try:
-        tx_hash = w3.eth.send_transaction({
-            "to": address,
-            "from": ACCOUNT,
-            "value": w3.to_wei(1, "ether"),
-            "gas": 21000,
-            "gasPrice": w3.to_wei(0, "gwei"),
-        })
-
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-
-        return jsonify({
-            "status": "FUNDED",
-            "tx_hash": tx_hash.hex(),
-            "amount": "1 ETH"
-        })
-
-    except Exception as e:
-        print("❌ FUND ERROR:", e)
+        print("❌ VOTE ERROR:", e)
         return jsonify({"error": str(e)}), 500

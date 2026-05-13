@@ -87,6 +87,66 @@
                 <p class="subtitle" style="text-align: center;">Non hai ancora creato visite.</p>
             {% endif %}
         </section>
+        <hr>
+
+<section class="section-area">
+    <h2><span class="material-icons-round">how_to_vote</span>Visite da Validare</h2>
+    {% set votable = confirmed_visits | selectattr("records") | list %}
+    {% if votable %}
+        <ul class="visit-list">
+            {% for visit in votable %}
+                {% set record = visit.records | first %}
+                {% if record %}
+                <li class="visit-card">
+                    <div class="visit-card-header">
+                        <span class="visit-title">Visita #{{ visit.id }}</span>
+                        <span class="status-badge {{ 'confirmed' if record.status == 'APPROVED' else 'pending' if record.status == 'PENDING' else 'rejected' }}">
+                            {{ record.status }}
+                        </span>
+                    </div>
+                    <div class="visit-details">
+                        <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
+                        <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}<br>
+                        <strong>Record #{{ record.id }}</strong> —
+                        Voti: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                    </div>
+
+                    {% if record.status == "PENDING" %}
+                        <div class="action-row" style="margin-top: 12px;">
+                                <button
+                                    class="btn-primary btn-small btn-approve"
+                                    data-record-id="{{ record.id }}"
+                                    data-doctor-id="{{ doctor.id }}"
+                                    onclick="voteRecord(event, true)">
+                                    ✅ Approva
+                                </button>
+                                <button
+                                    class="btn-primary btn-small btn-reject"
+                                    data-record-id="{{ record.id }}"
+                                    data-doctor-id="{{ doctor.id }}"
+                                    onclick="voteRecord(event, false)">
+                                    ❌ Rifiuta
+                                </button>
+                        </div>
+                    {% elif record.status == "APPROVED" %}
+                        <div style="margin-top: 8px; color: green;">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">check_circle</span>
+                            Record approvato e registrato in blockchain
+                        </div>
+                    {% elif record.status == "REJECTED" %}
+                        <div style="margin-top: 8px; color: red;">
+                            <span class="material-icons-round" style="font-size:16px;vertical-align:middle;">cancel</span>
+                            Record rifiutato
+                        </div>
+                    {% endif %}
+                </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="subtitle" style="text-align: center;">Nessuna visita con record da validare.</p>
+    {% endif %}
+</section>
 
         <button class="btn-primary btn-secondary" onclick="location.href='/'">Torna alla pagina iniziale</button>
     </div>
@@ -144,7 +204,10 @@
         }
     }
 
-    async function voteRecord(recordId, approve, btn) {
+    async function voteRecord(event, approve) {
+        const btn = event.currentTarget;
+        const recordId = btn.dataset.recordId;
+        const doctorId = btn.dataset.doctorId;
         btn.disabled = true;
         btn.textContent = "⏳...";
 
@@ -152,7 +215,7 @@
             const res = await fetch(`/api/records/${recordId}/vote`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ approve })
+                body: JSON.stringify({ approve, doctor_id: parseInt(doctorId) })
             });
             const data = await res.json();
 
