@@ -65,7 +65,11 @@
 
             const data = {
                 patient_id: document.getElementById("patient_id").value,
-                doctor_id: document.getElementById("doctor_id").value
+                doctor_id: document.getElementById("doctor_id").value,
+                pressione_max: document.getElementById("pressione_max").value,
+                pressione_min: document.getElementById("pressione_min").value,
+                battiti: document.getElementById("battiti").value,
+                note: document.getElementById("note").value
             };
 
             const res = await fetch("/api/visits", {

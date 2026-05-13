@@ -123,9 +123,16 @@ def submit_visit():
     patient_address = patient.user.wallet_address
     doctor_address = doctor.user.wallet_address
 
-    # 🔐 generazione hash (esempio semplice)
+    # 1. DEFINISCI IL TIMESTAMP UNA VOLTA SOLA
+    now = datetime.utcnow().isoformat() 
+
+    # 2. CALCOLA L'HASH UNICO (Includendo i nuovi campi)
+    # Usiamo una stringa fissa che includa tutto quello che vuoi proteggere
+    data_content = f"{patient_id}-{doctor_id}-{p_max}-{p_min}-{battiti}-{now}"
+    final_data_hash = Web3.keccak(text=data_content)
+    
+    # Calcoliamo anche il patient_hash
     patient_hash = Web3.keccak(text=str(patient_id))
-    data_hash = Web3.keccak(text=f"{patient_id}-{doctor_id}-{datetime.utcnow()}")
 
     contract = get_contract()
 
@@ -133,7 +140,7 @@ def submit_visit():
         tx_hash = contract.functions.submitVisit(
             patient_address,
             patient_hash,
-            data_hash,
+            final_data_hash,
         ).transact(tx_params())
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
@@ -178,7 +185,7 @@ def submit_visit():
         battiti=battiti,
         note=note,
         patient_hash=patient_hash.hex(),
-        data_hash=data_hash.hex(),
+        data_hash=final_data_hash.hex(),
         confirmed=False,
         blockchain_tx=tx_hash.hex(),
     )
