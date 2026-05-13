@@ -1,66 +1,105 @@
-<div class="main-css">
-    <h1>Bentornato {{ patient.nome }} {{ patient.cognome }}</h1>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area Paziente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
+</head>
+<body>
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">assignment_ind</span>
+        </div>
+        <h1>Bentornato, Paziente</h1>
+        <p class="subtitle">{{ patient.nome }} {{ patient.cognome }}</p>
 
-    <section>
-        <h2>Visite confermate</h2>
-        {% set confirmed_visits = visits | selectattr('confirmed') | list %}
-        {% if confirmed_visits %}
-            <ul>
-                {% for visit in confirmed_visits %}
-                    <li>
-                        Visita #{{ visit.id }} - Dottore: {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
-                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non hai ancora visite confermate.</p>
-        {% endif %}
-    </section>
+        <section class="section-area">
+            <h2><span class="material-icons-round" style="color: var(--warning-color);">pending_actions</span>Visite da confermare</h2>
+            {% set pending_visits = visits | rejectattr('confirmed') | list %}
+            {% if pending_visits %}
+                <ul class="visit-list">
+                    {% for visit in pending_visits %}
+                        <li class="visit-card" style="border-left: 4px solid var(--warning-color);">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Dottore:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                            </div>
+                            {% if visit.created_at %}
+                                <div class="visit-meta">
+                                    <span class="material-icons-round" style="font-size: 14px;">calendar_today</span>
+                                    {{ visit.created_at.strftime('%d/%m/%Y') }}
+                                </div>
+                            {% endif %}
+                            <button class="btn-primary btn-small confirm-visit" style="margin-top: 12px;" data-visit-id="{{ visit.id }}">
+                                <span class="material-icons-round" style="font-size: 16px;">done</span> Conferma visita
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="subtitle" style="text-align: center;">Non ci sono visite da confermare.</p>
+            {% endif %}
+        </section>
 
-    <section>
-        <h2>Visite da confermare</h2>
-        {% set pending_visits = visits | rejectattr('confirmed') | list %}
-        {% if pending_visits %}
-            <ul>
-                {% for visit in pending_visits %}
-                    <li>
-                        Visita #{{ visit.id }} - Dottore: {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
-                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
-                        <button class="confirm-visit" data-visit-id="{{ visit.id }}">Conferma visita</button>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non ci sono visite da confermare.</p>
-        {% endif %}
-    </section>
+        <hr>
 
-    <a href="/">Torna alla pagina iniziale</a>
-</div>
+        <section class="section-area">
+            <h2><span class="material-icons-round" style="color: var(--success-color);">task_alt</span>Visite confermate</h2>
+            {% set confirmed_visits = visits | selectattr('confirmed') | list %}
+            {% if confirmed_visits %}
+                <ul class="visit-list">
+                    {% for visit in confirmed_visits %}
+                        <li class="visit-card" style="border-left: 4px solid var(--success-color);">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Dottore:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}
+                            </div>
+                            {% if visit.created_at %}
+                                <div class="visit-meta">
+                                    <span class="material-icons-round" style="font-size: 14px;">calendar_today</span>
+                                    {{ visit.created_at.strftime('%d/%m/%Y') }}
+                                </div>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="subtitle" style="text-align: center;">Non hai ancora visite confermate.</p>
+            {% endif %}
+        </section>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll('.confirm-visit').forEach(button => {
-        button.addEventListener('click', async () => {
-            const visitId = button.getAttribute('data-visit-id');
-            const response = await fetch(`/api/visits/${visitId}/confirm`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
+        <button class="btn-primary btn-secondary" onclick="location.href='/'">Torna alla pagina iniziale</button>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll('.confirm-visit').forEach(button => {
+            button.addEventListener('click', async () => {
+                const visitId = button.getAttribute('data-visit-id');
+                const response = await fetch(`/api/visits/${visitId}/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    alert('Errore durante la conferma: ' + errorText);
+                    return;
+                }
+
+                alert('Visita confermata con successo. La pagina verrà aggiornata.');
+                window.location.reload();
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                alert('Errore durante la conferma: ' + errorText);
-                return;
-            }
-
-            alert('Visita confermata con successo. La pagina verrà aggiornata.');
-            window.location.reload();
         });
     });
-});
-</script>
+    </script>
+</body>
+</html>

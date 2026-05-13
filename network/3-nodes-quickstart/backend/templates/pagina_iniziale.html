@@ -2,66 +2,80 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Sistema Sanitario</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
 </head>
 <body>
 
-    <h1>🔐 Login</h1>
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">local_hospital</span>
+        </div>
 
-    <!-- ========================= -->
-    <!-- LOGIN EMAIL/PASSWORD -->
-    <!-- ========================= -->
-    <h2>Login con Email</h2>
+        <h1>Accedi al Portale</h1>
+        <p class="subtitle">Inserisci le tue credenziali di medico o paziente</p>
 
-    <input type="email" id="email" placeholder="Email"><br><br>
-    <input type="password" id="password" placeholder="Password"><br><br>
+        <div class="input-group">
+            <input type="email" id="email" placeholder="Indirizzo Email" required>
+            <span class="material-icons-round input-icon">email</span>
+        </div>
 
-    <button onclick="login()">Login</button>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Password" required>
+            <span class="material-icons-round input-icon">lock</span>
+        </div>
 
-    <h3>Risultato:</h3>
-    <pre id="output"></pre>
+        <button class="btn-primary" onclick="login()">Accedi</button>
 
-    <!-- ========================= -->
-    <!-- SCRIPT -->
-    <!-- ========================= -->
+        <pre id="output"></pre>
+
+        <p class="footer-text">Sistema protetto con crittografia blockchain decentralized</p>
+    </div>
+
     <script>
         const API_URL = "/auth";
 
-        let currentWallet = null;
-
-        // =========================
-        // LOGIN PASSWORD
-        // =========================
         async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const outputBox = document.getElementById("output");
 
-    const res = await fetch("/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-    });
+            outputBox.style.display = "none";
+            outputBox.innerText = "";
 
-    const data = await res.json();
+            try {
+                const res = await fetch("/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
 
-    if (!res.ok) {
-        document.getElementById("output").innerText = data.error;
-        return;
-    }
+                const data = await res.json();
 
-    // 🔥 REDIRECT PER RUOLO
-    if (data.role === "PATIENT") {
-        window.location.href = "/patient";
-    }
+                if (!res.ok) {
+                    outputBox.innerText = data.error || "Errore sconosciuto";
+                    outputBox.style.display = "block";
+                    return;
+                }
 
-    if (data.role === "DOCTOR") {
-        window.location.href = "/doctor";
-    }
-
-    if (data.role === "ADMIN") {
-        window.location.href = "/admin";
-    }
-}
+                // Gestione Redirect
+                if (data.role === "PATIENT") {
+                    window.location.href = "/patient";
+                } else if (data.role === "DOCTOR") {
+                    window.location.href = "/doctor";
+                } else if (data.role === "ADMIN") {
+                    window.location.href = "/admin";
+                }
+            } catch (err) {
+                outputBox.innerText = "Impossibile connettersi al server.";
+                outputBox.style.display = "block";
+            }
+        }
     </script>
 
 </body>

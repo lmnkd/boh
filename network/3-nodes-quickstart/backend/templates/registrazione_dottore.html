@@ -2,93 +2,131 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Registrazione Medico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrazione Medico - Sistema Sanitario</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
 </head>
 <body>
 
-<h2>Registrazione Medico</h2>
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">person_add</span>
+        </div>
 
-<form id="registerForm">
+        <h1>Registra Medico</h1>
+        <p class="subtitle">Inserisci i dati per generare un account e un wallet sul sistema</p>
 
-    <input type="text" id="nome" placeholder="Nome" required>
-    <input type="text" id="cognome" placeholder="Cognome" required>
+        <form id="registerForm" onsubmit="event.preventDefault(); registerDoctor();">
+            <div class="input-group">
+                <input type="text" id="nome" placeholder="Nome" required>
+                <span class="material-icons-round input-icon">badge</span>
+            </div>
 
-    <button type="button" onclick="registerDoctor()">
-        Registra Medico
-    </button>
+            <div class="input-group">
+                <input type="text" id="cognome" placeholder="Cognome" required>
+                <span class="material-icons-round input-icon">badge</span>
+            </div>
 
-</form>
+            <button type="submit" class="btn-primary">Registra Medico</button>
+        </form>
 
-<p id="status"></p>
+        <pre id="output"></pre>
 
-<script>
+        <button class="btn-primary" onclick="location.href='/admin'" style="background-color: var(--text-muted); margin-top: 15px;">
+            Torna al Pannello Admin
+        </button>
 
-// -----------------------------
-// EMAIL AUTOMATICA
-// -----------------------------
-function generateEmail(nome, cognome) {
-    return `${nome.toLowerCase()}.${cognome.toLowerCase()}@test.com`;
-}
+        <p class="footer-text">Generazione automatica di chiavi crittografiche e credenziali</p>
+    </div>
 
-// -----------------------------
-// PASSWORD RANDOM
-// -----------------------------
-function generatePassword() {
-    return Math.random().toString(36).slice(-10);
-}
-
-// -----------------------------
-// REGISTRAZIONE MEDICO
-// -----------------------------
-async function registerDoctor() {
-
-    const nome = document.getElementById("nome").value.trim();
-    const cognome = document.getElementById("cognome").value.trim();
-
-    if (!nome || !cognome) {
-        alert("Compila tutti i campi");
-        return;
-    }
-
-    const email = generateEmail(nome, cognome);
-    const password = generatePassword();
-
-    try {
-        const response = await fetch("/api/register-doctor", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                nome: nome,
-                cognome: cognome,
-                email: email,
-                password: password,
-                role: "DOCTOR"
-            })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            document.getElementById("status").innerText =
-                `Registrazione OK\n` +
-                `Email: ${email}\n` +
-                `Password: ${password}\n` +
-                `Wallet: ${data.wallet_address}`;
-        } else {
-            document.getElementById("status").innerText =
-                "Errore: " + (data.error || "server error");
+    <script>
+        // -----------------------------
+        // EMAIL AUTOMATICA
+        // -----------------------------
+        function generateEmail(nome, cognome) {
+            return `${nome.toLowerCase().replace(/\s+/g, '')}.${cognome.toLowerCase().replace(/\s+/g, '')}@test.com`;
         }
 
-    } catch (err) {
-        console.error("Errore fetch:", err);
-        document.getElementById("status").innerText =
-            "Errore di connessione al server";
-    }
-}
+        // -----------------------------
+        // PASSWORD RANDOM
+        // -----------------------------
+        function generatePassword() {
+            return Math.random().toString(36).slice(-10);
+        }
 
-</script>
+        // -----------------------------
+        // REGISTRAZIONE MEDICO
+        // -----------------------------
+        async function registerDoctor() {
+            const nome = document.getElementById("nome").value.trim();
+            const cognome = document.getElementById("cognome").value.trim();
+            const outputBox = document.getElementById("output");
+
+            // Reset del box di output
+            outputBox.style.display = "none";
+            outputBox.style.color = "var(--text-main)";
+            outputBox.style.backgroundColor = "#f0fdfa"; // Sfondo teal chiarissimo per il successo
+            outputBox.style.borderColor = "#ccfbf1";
+            outputBox.innerText = "";
+
+            if (!nome || !cognome) {
+                outputBox.style.color = "var(--error-color)";
+                outputBox.style.backgroundColor = "#fef2f2";
+                outputBox.style.borderColor = "#fca5a5";
+                outputBox.innerText = "Compila tutti i campi.";
+                outputBox.style.display = "block";
+                return;
+            }
+
+            const email = generateEmail(nome, cognome);
+            const password = generatePassword();
+
+            try {
+                const response = await fetch("/api/register-doctor", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        nome: nome,
+                        cognome: cognome,
+                        email: email,
+                        password: password,
+                        role: "DOCTOR"
+                    })
+                });
+
+                const data = await response.json();
+
+                outputBox.style.display = "block";
+
+                if (response.ok) {
+                    outputBox.innerText = 
+                        `✅ Registrazione completata!\n\n` +
+                        `📧 Email: ${email}\n` +
+                        `🔑 Password: ${password}\n\n` +
+                        `👛 Wallet Address:\n${data.wallet_address}`;
+                } else {
+                    outputBox.style.color = "var(--error-color)";
+                    outputBox.style.backgroundColor = "#fef2f2";
+                    outputBox.style.borderColor = "#fca5a5";
+                    outputBox.innerText = "❌ Errore: " + ("Il dottore è già stato registrato");
+                }
+
+            } catch (err) {
+                console.error("Errore fetch:", err);    
+                outputBox.style.color = "var(--error-color)";
+                outputBox.style.backgroundColor = "#fef2f2";
+                outputBox.style.borderColor = "#fca5a5";
+                outputBox.innerText = "❌ Errore di connessione al server.";
+                outputBox.style.display = "block";
+            }
+        }
+    </script>
 
 </body>
 </html>

@@ -1,58 +1,91 @@
-<div class="main-css">
-    <h1>Visite</h1>
-    <p>Questa è la pagina delle visite. Qui puoi vedere tutte le visite registrate nel sistema.</p>
-    <a href="/">Torna alla pagina iniziale</a>
-    <ul>
-        {% for visit in visits %}
-            <li>{{ visit.id }} - {{ visit.patient.nome }} {{ visit.patient.cognome }}</li>
-            <button onclick="location.href='/visits/delete/{{ visit.id }}'">Elimina Visita</button>
-        {% endfor %}
-    </ul>
-    
-    <h2>Fai il submit di una nuova visita</h2>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Globale Visite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
+</head>
+<body>
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">storage</span>
+        </div>
+        <h1>Visite di Sistema</h1>
+        <p class="subtitle">Interfaccia amministrativa per il controllo diretto del database.</p>
 
-<form id="visitForm">
-    <label for="patient_id">ID Paziente:</label>
-    <input type="number" id="patient_id" required><br><br>
+        <section class="section-area">
+            <h2><span class="material-icons-round">list</span>Tutte le visite registrate</h2>
+            {% if visits %}
+                <ul class="visit-list">
+                    {% for visit in visits %}
+                        <li class="visit-card" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="visit-details">
+                                <strong>ID #{{ visit.id }}</strong> - {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                            </div>
+                            <button class="btn-primary btn-small btn-reject" onclick="location.href='/visits/delete/{{ visit.id }}'">
+                                <span class="material-icons-round" style="font-size:16px;">delete</span> Elimina
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="subtitle" style="text-align: center;">Nessun record presente.</p>
+            {% endif %}
+        </section>
 
-    <label for="doctor_id">ID Dottore:</label>
-    <input type="number" id="doctor_id" required><br><br>
+        <hr>
 
-    <button type="submit">Aggiungi Visita</button>
-</form>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
+        <section class="section-area">
+            <h2><span class="material-icons-round">add_circle</span>Inserimento Visita Forzato</h2>
+            <form id="visitForm">
+                <div class="input-group">
+                    <input type="number" id="patient_id" placeholder="ID Paziente" required>
+                    <span class="material-icons-round input-icon">tag</span>
+                </div>
 
-    document.getElementById("visitForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
+                <div class="input-group">
+                    <input type="number" id="doctor_id" placeholder="ID Dottore" required>
+                    <span class="material-icons-round input-icon">assignment_ind</span>
+                </div>
 
-        const data = {
-            patient_id: document.getElementById("patient_id").value,
-            doctor_id: document.getElementById("doctor_id").value
-        };
+                <button type="submit" class="btn-primary">Aggiungi Visita</button>
+            </form>
+        </section>
 
-        console.log("📦 Dati inviati:", data);
+        <button class="btn-primary btn-secondary" onclick="location.href='/'">Torna alla pagina iniziale</button>
+    </div>
 
-        const res = await fetch("/api/visits", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("visitForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const data = {
+                patient_id: document.getElementById("patient_id").value,
+                doctor_id: document.getElementById("doctor_id").value
+            };
+
+            const res = await fetch("/api/visits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                console.error("❌ Errore server:", text);
+                alert("Errore durante il caricamento del record.");
+                return;
+            }
+
+            const result = await res.json();
+            alert("Visita inserita con successo nel database.");
+            window.location.reload();
         });
-
-        // 🔥 DEBUG SICURO
-        if (!res.ok) {
-            const text = await res.text();
-            console.error("❌ Errore server:", text);
-            return;
-        }
-
-        const result = await res.json();
-        console.log("✅ Risposta server:", result);
     });
-
-});
-</script>
- 
-</div>
+    </script>
+</body>
+</html>

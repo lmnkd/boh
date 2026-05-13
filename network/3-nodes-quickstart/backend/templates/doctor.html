@@ -1,168 +1,176 @@
-<div class="main-css">
-    <h1>Bentornato {{ doctor.nome }} {{ doctor.cognome }}</h1>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Medico</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
+</head>
+<body>
+    <div class="container-page" style="max-width: 600px;">
+        <div class="brand-icon">
+            <span class="material-icons-round">medical_services</span>
+        </div>
+        <h1>Bentornato, Dottore</h1>
+        <p class="subtitle">{{ doctor.nome }} {{ doctor.cognome }}</p>
 
-    <section>
-        <h2>Crea una nuova visita</h2>
-        <form id="visitForm">
-            <label for="patient_id">Seleziona Paziente:</label>
-            <select id="patient_id" required>
-                <option value="">-- Scegli un paziente --</option>
-                {% for patient in patients %}
-                    <option value="{{ patient.id }}">{{ patient.nome }} {{ patient.cognome }}</option>
-                {% endfor %}
-            </select><br><br>
+        <section class="section-area">
+            <h2><span class="material-icons-round">add_box</span>Crea una nuova visita</h2>
+            <form id="visitForm">
+                <div class="input-group">
+                    <select id="patient_id" required>
+                        <option value="">-- Scegli un paziente --</option>
+                        {% for patient in patients %}
+                            <option value="{{ patient.id }}">{{ patient.nome }} {{ patient.cognome }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="material-icons-round input-icon">person</span>
+                </div>
+                <input type="hidden" id="doctor_id" value="{{ doctor.id }}">
+                <button type="submit" class="btn-primary">Crea Visita</button>
+            </form>
+        </section>
 
-            <input type="hidden" id="doctor_id" value="{{ doctor.id }}">
+        <hr>
 
-            <button type="submit">Crea Visita</button>
-        </form>
-    </section>
-
-    <section>
-        <h2>Le tue visite</h2>
-        {% if visits %}
-            <ul>
-                {% for visit in visits %}
-                    <li>
-                        <strong>Visita #{{ visit.id }}</strong> -
-                        Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }}
-                        {% if visit.created_at %} - Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
-                        - Confermata:
-                        <span style="color: {{ 'green' if visit.confirmed else 'orange' }}">
-                            {{ 'Sì' if visit.confirmed else 'In attesa' }}
-                        </span>
-
-                        {% if visit.confirmed %}
-                            {# Cerca se esiste già un record per questa visita #}
-                            {% set record = visit.record %}
-
-                            {% if not record %}
-                                <button
-                                    class="btn-propose"
-                                    onclick="proposeRecord({{ visit.id }}, this)">
-                                    📋 Proponi Record
-                                </button>
-                            {% else %}
-                                <span>Record #{{ record.id }} —
-                                    Stato: <strong>{{ record.status }}</strong>
+        <section class="section-area">
+            <h2><span class="material-icons-round">history_edu</span>Le tue visite</h2>
+            {% if visits %}
+                <ul class="visit-list">
+                    {% for visit in visits %}
+                        <li class="visit-card">
+                            <div class="visit-card-header">
+                                <span class="visit-title">Visita #{{ visit.id }}</span>
+                                <span class="status-badge {{ 'confirmed' if visit.confirmed else 'pending' }}">
+                                    {{ 'Sì' if visit.confirmed else 'In attesa' }}
                                 </span>
+                            </div>
+                            <div class="visit-details">
+                                <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                            </div>
+                            {% if visit.created_at %}
+                                <div class="visit-meta">
+                                    <span class="material-icons-round" style="font-size: 14px;">calendar_today</span>
+                                    Data: {{ visit.created_at.strftime('%d/%m/%Y') }}
+                                </div>
+                            {% endif %}
 
-                                {% if record.status == "PENDING" %}
-                                    <button
-                                        class="btn-vote btn-approve"
-                                        onclick="voteRecord({{ record.id }}, true, this)">
-                                        ✅ Approva
+                            {% if visit.confirmed %}
+                                {% set record = visit.record %}
+                                {% if not record %}
+                                    <button class="btn-primary btn-small" style="margin-top: 12px;" onclick="proposeRecord({{ visit.id }}, this)">
+                                        <span class="material-icons-round" style="font-size: 16px;">gavel</span> Proponi Record
                                     </button>
-                                    <button
-                                        class="btn-vote btn-reject"
-                                        onclick="voteRecord({{ record.id }}, false, this)">
-                                        ❌ Rifiuta
-                                    </button>
+                                {% else %}
+                                    <div class="blockchain-panel">
+                                        <div><strong>Record #{{ record.id }}</strong> — Stato: <strong>{{ record.status }}</strong></div>
+                                        
+                                        {% if record.status == "PENDING" %}
+                                            <div class="action-row">
+                                                <button class="btn-primary btn-small btn-approve" onclick="voteRecord({{ record.id }}, true, this)">
+                                                    ✅ Approva
+                                                </button>
+                                                <button class="btn-primary btn-small btn-reject" onclick="voteRecord({{ record.id }}, false, this)">
+                                                    ❌ Rifiuta
+                                                </button>
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
                             {% endif %}
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non hai ancora creato visite.</p>
-        {% endif %}
-    </section>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="subtitle" style="text-align: center;">Non hai ancora creato visite.</p>
+            {% endif %}
+        </section>
 
-    <a href="/">Torna alla pagina iniziale</a>
-</div>
+        <button class="btn-primary btn-secondary" onclick="location.href='/'">Torna alla pagina iniziale</button>
+    </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("visitForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("visitForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const data = {
+                patient_id: document.getElementById("patient_id").value,
+                doctor_id: document.getElementById("doctor_id").value
+            };
 
-        const data = {
-            patient_id: document.getElementById("patient_id").value,
-            doctor_id: document.getElementById("doctor_id").value
-        };
+            const res = await fetch("/api/visits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
 
-        const res = await fetch("/api/visits", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
+            if (!res.ok) {
+                const text = await res.text();
+                alert("Errore durante la creazione della visita: " + text);
+                return;
+            }
+
+            alert("Visita creata con successo!");
+            window.location.reload();
         });
-
-        if (!res.ok) {
-            const text = await res.text();
-            alert("Errore durante la creazione della visita: " + text);
-            return;
-        }
-
-        alert("Visita creata con successo!");
-        window.location.reload();
     });
-});
 
-// -----------------------------
-// PROPONI RECORD
-// -----------------------------
-async function proposeRecord(visitId, btn) {
-    btn.disabled = true;
-    btn.textContent = "⏳ Invio...";
+    async function proposeRecord(visitId, btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳ Invio...";
 
-    try {
-        const res = await fetch(`/api/visit/${visitId}/propose_record`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
-        });
+        try {
+            const res = await fetch(`/api/visit/${visitId}/propose_record`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            });
+            const data = await res.json();
 
-        const data = await res.json();
+            if (!res.ok) {
+                alert("Errore proposta record: " + (data.error || "server error"));
+                btn.disabled = false;
+                btn.textContent = "📋 Proponi Record";
+                return;
+            }
 
-        if (!res.ok) {
-            alert("Errore proposta record: " + (data.error || "server error"));
+            alert(`✅ Record proposto!\nRecord ID: ${data.record_id}\nTx: ${data.tx_hash}`);
+            window.location.reload();
+        } catch (err) {
+            alert("Errore di connessione al server");
             btn.disabled = false;
             btn.textContent = "📋 Proponi Record";
-            return;
         }
-
-        alert(`✅ Record proposto!\nRecord ID: ${data.record_id}\nTx: ${data.tx_hash}`);
-        window.location.reload();
-
-    } catch (err) {
-        console.error("Errore proposta:", err);
-        alert("Errore di connessione al server");
-        btn.disabled = false;
-        btn.textContent = "📋 Proponi Record";
     }
-}
 
-// -----------------------------
-// VOTA RECORD (2 step: build tx → sign → confirm)
-// -----------------------------
-async function voteRecord(recordId, approve, btn) {
-    btn.disabled = true;
-    btn.textContent = "⏳ Votazione...";
+    async function voteRecord(recordId, approve, btn) {
+        btn.disabled = true;
+        btn.textContent = "⏳...";
 
-    try {
-        const res = await fetch(`/api/records/${recordId}/vote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ approve })
-        });
+        try {
+            const res = await fetch(`/api/records/${recordId}/vote`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ approve })
+            });
+            const data = await res.json();
 
-        const data = await res.json();
+            if (!res.ok) {
+                alert("Errore voto: " + (data.error || "server error"));
+                btn.disabled = false;
+                btn.textContent = approve ? "✅ Approva" : "❌ Rifiuta";
+                return;
+            }
 
-        if (!res.ok) {
-            alert("Errore voto: " + (data.error || "server error"));
+            alert(`✅ Voto registrato!\nStato record: ${data.record_status}`);
+            window.location.reload();
+        } catch (err) {
+            alert("Errore di connessione al server");
             btn.disabled = false;
             btn.textContent = approve ? "✅ Approva" : "❌ Rifiuta";
-            return;
         }
-
-        alert(`✅ Voto registrato!\nStato record: ${data.record_status}`);
-        window.location.reload();
-
-    } catch (err) {
-        console.error("Errore voto:", err);
-        alert("Errore di connessione al server");
-        btn.disabled = false;
-        btn.textContent = approve ? "✅ Approva" : "❌ Rifiuta";
     }
-}
-</script>
+    </script>
+</body>
+</html>

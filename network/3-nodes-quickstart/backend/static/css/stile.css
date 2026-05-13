@@ -1,11 +1,287 @@
-.main-css {
-  -webkit-box-sizing: content-box;
-  -moz-box-sizing: content-box;
-  box-sizing: content-box;
-  border: none;
-  font: normal 16px/1 "Times New Roman", Times, serif;
-  color: black;
-  -o-text-overflow: ellipsis;
-  text-overflow: ellipsis;
+/* style.css */
+:root {
+    --primary-color: #0d9488;
+    --primary-hover: #0f766e;
+    --background: #f0fdfa;
+    --card-bg: #ffffff;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --error-color: #ef4444;
+    --success-color: #22c55e;
+    --warning-color: #f97316;
 }
 
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--background);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: var(--text-main);
+    padding: 20px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 30px;
+}
+
+/* Container principale riutilizzabile */
+.container-page {
+    background: var(--card-bg);
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(13, 148, 136, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03);
+    width: 100%;
+    max-width: 550px; /* Esteso leggermente per contenere meglio le liste */
+    text-align: center;
+}
+
+/* Icona medica in alto */
+.brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background-color: #ccfbf1;
+    color: var(--primary-color);
+    border-radius: 50%;
+    margin-bottom: 20px;
+}
+
+.brand-icon span {
+    font-size: 32px;
+}
+
+/* Gruppi di input e select */
+.input-group {
+    position: relative;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-group span.input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 20px;
+    transition: color 0.2s ease;
+}
+
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 14px 16px 14px 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s ease;
+    color: var(--text-main);
+    background-color: #f9fafb;
+    appearance: none; /* Rimuove lo stile nativo della freccia sulle select */
+}
+
+.input-group select {
+    padding-left: 44px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b7280'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 20px;
+}
+
+.input-group input:focus, .input-group select:focus {
+    border-color: var(--primary-color);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.input-group input:focus + span.input-icon, .input-group select:focus + span.input-icon {
+    color: var(--primary-color);
+}
+
+/* Pulsanti */
+button, .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 4px 6px rgba(13, 148, 136, 0.1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+button:hover, .btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+button:active, .btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-secondary {
+    background-color: var(--text-muted);
+    box-shadow: none;
+}
+.btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+/* Elementi di layout per Liste e Card Visite */
+.section-area {
+    margin-bottom: 30px;
+}
+
+.visit-list {
+    list-style: none;
+    text-align: left;
+}
+
+.visit-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+}
+
+.visit-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.visit-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-main);
+}
+
+.visit-details {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.visit-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+/* Badge di stato */
+.status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.status-badge.confirmed {
+    background-color: #dcfce7;
+    color: #166534;
+}
+.status-badge.pending {
+    background-color: #ffedd5;
+    color: #9a3412;
+}
+
+/* Sezione Blockchain & Validazione */
+.blockchain-panel {
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+.action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Pulsanti piccoli per azioni veloci sulle liste */
+.btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    width: auto;
+}
+.btn-approve { background-color: var(--success-color); box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2); }
+.btn-approve:hover { background-color: #16a34a; }
+.btn-reject { background-color: var(--error-color); box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); }
+.btn-reject:hover { background-color: #dc2626; }
+
+/* Separatore */
+hr {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 25px 0;
+}
+
+/* Output messaggi (Stile preesistente ottimizzato) */
+#output {
+    margin-top: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+    background-color: #f0fdfa;
+    border-radius: 8px;
+    padding: 14px;
+    display: none;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    border: 1px solid #ccfbf1;
+    text-align: left;
+}
+
+.footer-text {
+    margin-top: 30px;
+    font-size: 12px;
+    color: var(--text-muted);
+}

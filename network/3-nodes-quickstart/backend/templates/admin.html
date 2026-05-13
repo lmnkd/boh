@@ -1,21 +1,52 @@
-<div class="main-css">
-    <h1>Bentornato {{ admin.nome }}</h1>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Sistema Sanitario</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
+</head>
+<body>
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">admin_panel_settings</span>
+        </div>
+        <h1>Pannello Admin</h1>
+        <p class="subtitle">Bentornato, {{ admin.nome }}</p>
 
-    <section>
-        <h2>Visite</h2>
-        {% if visits %}
-            <ul>
-                {% for visit in visits %}
-                    <li>
-                        Visita #{{ visit.id }} - Medico: {{ visit.doctor.nome }} {{ visit.doctor.cognome }} - Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }}
-                        {% if visit.confirmed %}- Confermata{% else %}- In attesa di conferma{% endif %}
+        <section class="section-area">
+            <h2><span class="material-icons-round">analytics</span>Registro Visite Totale</h2>
+            {% if visits %}
+                <ul class="visit-list">
+                    {% for visit in visits %}
+                    <li class="visit-card">
+                        <div class="visit-card-header">
+                            <span class="visit-title">Visita #{{ visit.id }}</span>
+                            <span class="status-badge {{ 'confirmed' if visit.confirmed else 'pending' }}">
+                                {{ 'Confermata' if visit.confirmed else 'In attesa' }}
+                            </span>
+                        </div>
+                        <div class="visit-details">
+                            <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
+                            <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                        </div>
                     </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non ci sono visite nel sistema.</p>
-        {% endif %}
-    </section>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="subtitle">Non ci sono visite nel sistema.</p>
+            {% endif %}
+        </section>
 
-    <a href="/">Torna alla pagina iniziale</a>
-</div>
+        <button class="btn-primary" onclick="location.href='/registrazione_dottore'" style="margin-bottom: 15px;">
+            ➕ Registra Nuovo Medico
+        </button>
+
+        <button class="btn-primary" onclick="location.href='/'" style="background-color: var(--text-muted);">
+            Torna alla Home
+        </button>
+    </div>
+</body>
+</html>
