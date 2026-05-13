@@ -14,7 +14,7 @@
     <input type="text" id="cognome" placeholder="Cognome" required>
 
     <button type="button" onclick="registerDoctor()">
-        Connetti MetaMask e registra
+        Registra Medico
     </button>
 
 </form>
@@ -22,62 +22,6 @@
 <p id="status"></p>
 
 <script>
-
-let currentWallet = null;
-
-// -----------------------------
-// CONNETTI METAMASK (FIX DEFINITIVO)
-// -----------------------------
-async function connectWallet() {
-    if (!window.ethereum) {
-        alert("Installa MetaMask");
-        return null;
-    }
-
-    try {
-        // 🔥 FORZA APERTURA POPUP META MASK
-        await window.ethereum.request({
-            method: "wallet_requestPermissions",
-            params: [{ eth_accounts: {} }]
-        });
-
-        const accounts = await window.ethereum.request({
-            method: "eth_accounts"
-        });
-
-        if (!accounts || accounts.length === 0) {
-            alert("Nessun account selezionato");
-            return null;
-        }
-
-        currentWallet = accounts[0];
-        console.log("Wallet connesso:", currentWallet);
-
-        return currentWallet;
-
-    } catch (error) {
-        console.error("Errore MetaMask:", error);
-        alert("Connessione MetaMask fallita o annullata");
-        return null;
-    }
-}
-
-// -----------------------------
-// ASCOLTA CAMBIO ACCOUNT
-// -----------------------------
-if (window.ethereum) {
-    window.ethereum.on("accountsChanged", (accounts) => {
-        if (!accounts || accounts.length === 0) {
-            currentWallet = null;
-            document.getElementById("status").innerText =
-                "Wallet disconnesso";
-        } else {
-            currentWallet = accounts[0];
-            document.getElementById("status").innerText =
-                "Wallet attivo: " + currentWallet;
-        }
-    });
-}
 
 // -----------------------------
 // EMAIL AUTOMATICA
@@ -98,16 +42,13 @@ function generatePassword() {
 // -----------------------------
 async function registerDoctor() {
 
-    const nome = document.getElementById("nome").value;
-    const cognome = document.getElementById("cognome").value;
+    const nome = document.getElementById("nome").value.trim();
+    const cognome = document.getElementById("cognome").value.trim();
 
     if (!nome || !cognome) {
         alert("Compila tutti i campi");
         return;
     }
-
-    const wallet = await connectWallet();
-    if (!wallet) return;
 
     const email = generateEmail(nome, cognome);
     const password = generatePassword();
@@ -123,17 +64,22 @@ async function registerDoctor() {
                 cognome: cognome,
                 email: email,
                 password: password,
-                role: "DOCTOR",
-                wallet_address: wallet
+                role: "DOCTOR"
             })
         });
 
         const data = await response.json();
 
-        document.getElementById("status").innerText =
-            response.ok
-                ? `Registrazione OK\nEmail: ${email}\nPassword: ${password}\nWallet: ${wallet}`
-                : "Errore: " + (data.error || "server error");
+        if (response.ok) {
+            document.getElementById("status").innerText =
+                `Registrazione OK\n` +
+                `Email: ${email}\n` +
+                `Password: ${password}\n` +
+                `Wallet: ${data.wallet_address}`;
+        } else {
+            document.getElementById("status").innerText =
+                "Errore: " + (data.error || "server error");
+        }
 
     } catch (err) {
         console.error("Errore fetch:", err);

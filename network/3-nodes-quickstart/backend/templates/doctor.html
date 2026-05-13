@@ -24,8 +24,43 @@
             <ul>
                 {% for visit in visits %}
                     <li>
-                        Visita #{{ visit.id }} - Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }} - Confermata: {{ visit.confirmed }}
-                        {% if visit.created_at %}- Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                        <strong>Visita #{{ visit.id }}</strong> -
+                        Paziente: {{ visit.patient.nome }} {{ visit.patient.cognome }}
+                        {% if visit.created_at %} - Data: {{ visit.created_at.strftime('%d/%m/%Y') }}{% endif %}
+                        - Confermata:
+                        <span style="color: {{ 'green' if visit.confirmed else 'orange' }}">
+                            {{ 'Sì' if visit.confirmed else 'In attesa' }}
+                        </span>
+
+                        {% if visit.confirmed %}
+                            {# Cerca se esiste già un record per questa visita #}
+                            {% set record = visit.record %}
+
+                            {% if not record %}
+                                <button
+                                    class="btn-propose"
+                                    onclick="proposeRecord({{ visit.id }}, this)">
+                                    📋 Proponi Record
+                                </button>
+                            {% else %}
+                                <span>Record #{{ record.id }} —
+                                    Stato: <strong>{{ record.status }}</strong>
+                                </span>
+
+                                {% if record.status == "PENDING" %}
+                                    <button
+                                        class="btn-vote btn-approve"
+                                        onclick="voteRecord({{ record.id }}, true, this)">
+                                        ✅ Approva
+                                    </button>
+                                    <button
+                                        class="btn-vote btn-reject"
+                                        onclick="voteRecord({{ record.id }}, false, this)">
+                                        ❌ Rifiuta
+                                    </button>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -47,27 +82,87 @@ document.addEventListener("DOMContentLoaded", () => {
             doctor_id: document.getElementById("doctor_id").value
         };
 
-        console.log("📦 Dati inviati:", data);
-
         const res = await fetch("/api/visits", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
         });
 
         if (!res.ok) {
             const text = await res.text();
-            console.error("❌ Errore server:", text);
             alert("Errore durante la creazione della visita: " + text);
             return;
         }
 
-        const result = await res.json();
-        console.log("✅ Risposta server:", result);
         alert("Visita creata con successo!");
         window.location.reload();
     });
 });
+
+// -----------------------------
+// PROPONI RECORD
+// -----------------------------
+async function proposeRecord(visitId, btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳ Invio...";
+
+    try {
+        const res = await fetch(`/api/visit/${visitId}/propose_record`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert("Errore proposta record: " + (data.error || "server error"));
+            btn.disabled = false;
+            btn.textContent = "📋 Proponi Record";
+            return;
+        }
+
+        alert(`✅ Record proposto!\nRecord ID: ${data.record_id}\nTx: ${data.tx_hash}`);
+        window.location.reload();
+
+    } catch (err) {
+        console.error("Errore proposta:", err);
+        alert("Errore di connessione al server");
+        btn.disabled = false;
+        btn.textContent = "📋 Proponi Record";
+    }
+}
+
+// -----------------------------
+// VOTA RECORD (2 step: build tx → sign → confirm)
+// -----------------------------
+async function voteRecord(recordId, approve, btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳ Votazione...";
+
+    try {
+        const res = await fetch(`/api/records/${recordId}/vote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ approve })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert("Errore voto: " + (data.error || "server error"));
+            btn.disabled = false;
+            btn.textContent = approve ? "✅ Approva" : "❌ Rifiuta";
+            return;
+        }
+
+        alert(`✅ Voto registrato!\nStato record: ${data.record_status}`);
+        window.location.reload();
+
+    } catch (err) {
+        console.error("Errore voto:", err);
+        alert("Errore di connessione al server");
+        btn.disabled = false;
+        btn.textContent = approve ? "✅ Approva" : "❌ Rifiuta";
+    }
+}
 </script>

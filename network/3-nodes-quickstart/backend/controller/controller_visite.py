@@ -235,7 +235,10 @@ def confirm_visit(visit_id):
             "step": "transaction_failed"
         }), 500
 
-    visit.confirmed = True
+    visit_data = get_contract().functions.getVisit(
+    visit.blockchain_id).call()
+    print("VISIT ONCHAIN:", visit_data)
+    visit.confirmed = visit_data[4]
     visit.blockchain_tx = tx_hash.hex()
     db.session.commit()
 

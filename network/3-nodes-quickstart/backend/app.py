@@ -12,6 +12,7 @@ import time
 from controller.controller import api as controller_api
 from controller.controller_visite import api as visite_api
 from controller.controller_dottore import api as dottore_api
+from controller.record_controller import api as record_api
 from controller.auth import auth
 from dotenv import load_dotenv
 
@@ -161,6 +162,7 @@ app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(controller_api, url_prefix="/api")
 app.register_blueprint(visite_api, url_prefix="/api")
 app.register_blueprint(dottore_api, url_prefix="/api")
+app.register_blueprint(record_api, url_prefix="/api")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -1,35 +1,29 @@
 from controller.controller import record_to_dict, normalize_address, bytes32_from_value, tx_params
 from flask import Blueprint, request, jsonify
-from database.database import db, Record, Visit
+from database.database import db, Record, Visit, Doctor, User
 from blockchain.contract import get_contract
 from blockchain.config import ACCOUNT, w3
-from controller.blockchain_service import propose_record, vote_record
 from web3 import Web3
 
 api = Blueprint("record_api", __name__)
 
-def check_authority_role(contract, account):
-    try:
-        role = Web3.keccak(text="AUTHORITY_ROLE")
-        address = Web3.to_checksum_address(account)
 
-        has_role = contract.functions.hasRole(role, address).call()
-
-        print("=== ROLE DEBUG ===")
-        print("ACCOUNT:", address)
-        print("AUTHORITY_ROLE:", role.hex())
-        print("HAS ROLE:", has_role)
-
-        return has_role
-
-    except Exception as e:
-        print("❌ ROLE CHECK ERROR:", e)
-        return None
+# -----------------------------
+# HELPER: firma e invia tx con private key
+# -----------------------------
+def sign_and_send(tx_data, private_key):
+    """Firma una transazione con la private key e la invia sulla chain."""
+    signed = w3.eth.account.sign_transaction(tx_data, private_key=private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+    return tx_hash, receipt
 
 
-def legacy_tx_params(from_address=None):
-    """Parametri transazione legacy per Quorum/Besu (no EIP-1559, no eth_feeHistory)."""
-    addr = normalize_address(from_address or ACCOUNT)
+# -----------------------------
+# HELPER: parametri tx legacy (Quorum/Besu)
+# -----------------------------
+def legacy_tx_params(from_address):
+    addr = normalize_address(from_address)
     return {
         "from": addr,
         "nonce": w3.eth.get_transaction_count(addr),
@@ -37,10 +31,28 @@ def legacy_tx_params(from_address=None):
         "gas": 5_000_000,
         "gasPrice": w3.to_wei(0, "gwei"),
         "value": 0,
-        "type": "0x0",
     }
 
 
+# -----------------------------
+# HELPER: recupera private key del dottore dalla visita
+# -----------------------------
+def get_doctor_private_key(visit):
+    """Risale da Visit → Doctor → User → private_key."""
+    doctor = Doctor.query.get(visit.doctor_id)
+    if not doctor:
+        raise ValueError(f"Doctor non trovato per visit {visit.id}")
+
+    user = User.query.get(doctor.user_id)
+    if not user or not user.private_key:
+        raise ValueError(f"Private key non trovata per doctor {doctor.id}")
+
+    return user.wallet_address, user.private_key
+
+
+# -----------------------------
+# GET /records
+# -----------------------------
 @api.route("/records", methods=["GET"])
 def list_records():
     status = request.args.get("status")
@@ -51,6 +63,9 @@ def list_records():
     return jsonify([record_to_dict(r) for r in records])
 
 
+# -----------------------------
+# GET /records/<id>
+# -----------------------------
 @api.route("/records/<int:record_id>", methods=["GET"])
 def get_record(record_id):
     record = Record.query.get(record_id)
@@ -59,155 +74,46 @@ def get_record(record_id):
     return jsonify(record_to_dict(record))
 
 
-def ensure_record_for_visit(visit, authority_address=None):
-    existing_record = Record.query.filter_by(visit_id=visit.id).first()
-    if existing_record:
-        return existing_record
-
-    try:
-        tx_hash = get_contract().functions.proposeRecord(
-            visit.blockchain_id,
-            bytes32_from_value(visit.data_hash),
-        ).transact(tx_params(authority_address))
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        events = get_contract().events.RecordProposed().process_receipt(receipt)
-        if not events:
-            raise ValueError("Evento RecordProposed non trovato")
-        blockchain_id = events[0].args.recordId
-    except Exception as exc:
-        raise
-
-    authority_wallet = normalize_address(authority_address) if authority_address else normalize_address(ACCOUNT)
-    record = Record(
-        blockchain_id=blockchain_id,
-        visit_id=visit.id,
-        authority_wallet=authority_wallet,
-        data_hash=visit.data_hash,
-        status="PENDING",
-        approve_votes=0,
-        reject_votes=0,
-        blockchain_tx=tx_hash.hex(),
-    )
-
-    db.session.add(record)
-    db.session.commit()
-    return record
-
-
-@api.route("/records/<int:record_id>/vote", methods=["POST"])
-def vote(record_id):
-    data = request.get_json() or {}
-    approve = data.get("approve")
-    from_address = data.get("from_address")
-
-    record = Record.query.get(record_id)
-    if not record:
-        return jsonify({"error": "Record not found"}), 404
-
-    try:
-        contract = get_contract()
-        tx_data = contract.functions.vote(
-            record.blockchain_id,
-            approve
-        ).build_transaction(legacy_tx_params())
-
-        return jsonify({
-            "status": "READY_FOR_TX",
-            "tx_data": {
-                "to":       tx_data["to"],
-                "from":     tx_data["from"],
-                "data":     tx_data["data"],
-                "value":    tx_data["value"],
-                "gas":      tx_data["gas"],
-                "gasPrice": tx_data["gasPrice"],
-                "chainId":  tx_data["chainId"],
-                "type":     tx_data["type"],
-            },
-            "record_id": record_id,
-            "approve": approve,
-            "from_address": from_address
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api.route("/records/<int:record_id>/confirm_vote", methods=["POST"])
-def confirm_vote(record_id):
-    data = request.get_json() or {}
-    tx_hash = data.get("tx_hash")
-    approve = data.get("approve")
-    from_address = data.get("from_address")
-
-    if not tx_hash:
-        return jsonify({"error": "tx_hash required"}), 400
-
-    record = Record.query.get(record_id)
-    if not record:
-        return jsonify({"error": "Record not found"}), 404
-
-    try:
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-
-        if approve:
-            record.approve_votes += 1
-        else:
-            record.reject_votes += 1
-
-        contract = get_contract()
-        record_info = contract.functions.records(record.blockchain_id).call()
-
-        if record_info[3]:  # approved
-            record.status = "APPROVED"
-        elif record.reject_votes > 0:
-            record.status = "REJECTED"
-
-        db.session.commit()
-
-        return jsonify({
-            "status": "SUCCESS",
-            "record_status": record.status
-        }), 200
-
-    except Exception as e:
-        print("❌ ERROR:", e)
-        return jsonify({"error": str(e)}), 500
-
-
+# -----------------------------
+# POST /visit/<id>/propose_record
+# -----------------------------
 @api.route("/visit/<int:visit_id>/propose_record", methods=["POST"])
 def propose_record_for_visit(visit_id):
 
     visit = Visit.query.get(visit_id)
-
     if not visit:
-        return jsonify({"error": "Visit non trovato"}), 404
+        return jsonify({"error": "Visit non trovata"}), 404
 
     if not visit.confirmed:
-        return jsonify({"error": "Visit non confermato"}), 400
+        return jsonify({"error": "Visit non confermata dal paziente"}), 400
+
+    # Controlla se esiste già un record per questa visita
+    existing = Record.query.filter_by(visit_id=visit.id).first()
+    if existing:
+        return jsonify({
+            "error": "Record già esistente per questa visita",
+            "record_id": existing.id
+        }), 409
 
     try:
-        contract = get_contract()
+        wallet_address, private_key = get_doctor_private_key(visit)
 
-        # 🔥 IMPORTANTISSIMO: RIUSA HASH SALVATO, NON RICALCOLARE
+        contract = get_contract()
         data_hash = Web3.to_bytes(hexstr=visit.data_hash)
 
         print("=== DEBUG PROPOSE RECORD ===")
-        print("ACCOUNT:", ACCOUNT)
+        print("DOCTOR WALLET:", wallet_address)
         print("visit.blockchain_id:", visit.blockchain_id)
-        print("visit.data_hash (DB):", visit.data_hash)
-        print("data_hash (bytes):", data_hash.hex())
+        print("data_hash:", data_hash.hex())
 
-        tx_hash = contract.functions.proposeRecord(
+        # Costruisce la transazione
+        tx_data = contract.functions.proposeRecord(
             visit.blockchain_id,
             data_hash
-        ).transact({
-            "from": normalize_address(ACCOUNT),
-            "gas": 5_000_000,
-            "gasPrice": w3.to_wei(0, "gwei"),
-            "type": "0x0"
-        })
+        ).build_transaction(legacy_tx_params(wallet_address))
 
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
+        # Firma e invia con la private key del dottore
+        tx_hash, receipt = sign_and_send(tx_data, private_key)
 
         print("TX STATUS:", receipt.status)
 
@@ -217,15 +123,21 @@ def propose_record_for_visit(visit_id):
                 "debug": {
                     "visit_id": visit_id,
                     "blockchain_id": visit.blockchain_id,
-                    "account": ACCOUNT
+                    "doctor_wallet": wallet_address
                 }
             }), 400
 
-        # 🔥 CREA RECORD SOLO SE OK
+        # Legge l'evento per ottenere il blockchain_id del record
+        events = contract.events.RecordProposed().process_receipt(receipt)
+        if not events:
+            return jsonify({"error": "Evento RecordProposed non trovato"}), 500
+
+        blockchain_record_id = events[0].args.recordId
+
         record = Record(
-            blockchain_id=contract.functions.recordCount().call(),
+            blockchain_id=blockchain_record_id,
             visit_id=visit.id,
-            authority_wallet=ACCOUNT,
+            authority_wallet=wallet_address,
             data_hash=visit.data_hash,
             status="PENDING",
             approve_votes=0,
@@ -240,13 +152,85 @@ def propose_record_for_visit(visit_id):
             "status": "SUCCESS",
             "tx_hash": tx_hash.hex(),
             "record_id": record.id,
+            "blockchain_record_id": blockchain_record_id,
             "blockNumber": receipt.blockNumber
-        })
+        }), 201
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        print("❌ ERROR:", e)
+        print("❌ ERROR propose_record:", e)
         return jsonify({"error": str(e)}), 500
-    
+
+
+# -----------------------------
+# POST /records/<id>/vote
+# — firma direttamente lato server con la private key del dottore
+# -----------------------------
+@api.route("/records/<int:record_id>/vote", methods=["POST"])
+def vote(record_id):
+    data = request.get_json() or {}
+    approve = data.get("approve")
+
+    if approve is None:
+        return jsonify({"error": "Campo 'approve' obbligatorio (true/false)"}), 400
+
+    record = Record.query.get(record_id)
+    if not record:
+        return jsonify({"error": "Record not found"}), 404
+
+    if record.status != "PENDING":
+        return jsonify({"error": f"Record non votabile, stato attuale: {record.status}"}), 400
+
+    try:
+        # Risale al dottore tramite la visita
+        wallet_address, private_key = get_doctor_private_key(record.visit)
+
+        contract = get_contract()
+
+        tx_data = contract.functions.vote(
+            record.blockchain_id,
+            approve
+        ).build_transaction(legacy_tx_params(wallet_address))
+
+        tx_hash, receipt = sign_and_send(tx_data, private_key)
+
+        if receipt.status == 0:
+            return jsonify({"error": "Transazione voto fallita on-chain (REVERT)"}), 400
+
+        # Aggiorna contatori
+        if approve:
+            record.approve_votes += 1
+        else:
+            record.reject_votes += 1
+
+        # Legge lo stato aggiornato dal contratto
+        record_info = contract.functions.records(record.blockchain_id).call()
+        if record_info[3]:  # campo approved
+            record.status = "APPROVED"
+        elif record.reject_votes > 0:
+            record.status = "REJECTED"
+
+        db.session.commit()
+
+        return jsonify({
+            "status": "SUCCESS",
+            "tx_hash": tx_hash.hex(),
+            "record_status": record.status,
+            "approve_votes": record.approve_votes,
+            "reject_votes": record.reject_votes,
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print("❌ ERROR vote:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# -----------------------------
+# POST /fund_address
+# -----------------------------
 @api.route("/fund_address", methods=["POST"])
 def fund_address():
     data = request.get_json() or {}

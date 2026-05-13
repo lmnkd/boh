@@ -1,5 +1,5 @@
 from eth_account import Account
-from database import db, User
+from database.database import db, User
 
 
 def create_user(email, password, role):

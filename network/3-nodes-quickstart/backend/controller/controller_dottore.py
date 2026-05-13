@@ -6,6 +6,7 @@ from eth_account.messages import encode_defunct
 from blockchain.config import w3
 from blockchain.contract import get_contract
 from database.database import db, Doctor, User
+from controller.controller_user import create_user
 
 
 api = Blueprint("dottore_api", __name__)
@@ -93,20 +94,16 @@ def register_doctor():
         # -------------------------
         # 1. CREA USER
         # -------------------------
-        user = User(
+
+        user = create_user(
             email=data["email"],
-            wallet_address=data["wallet_address"],
+            password=data["password"],
             role="DOCTOR"
         )
-
+        
         print("Oggetto User creato", flush=True)
 
-        user.set_password(data["password"])
-
-        db.session.add(user)
-        db.session.commit()
-
-        print(f"User salvato con id {user.id}", flush=True)
+        print(f"User salvato con id {user.id} e wallet address {user.wallet_address}", flush=True)
 
         # -------------------------
         # 2. CREA DOCTOR
@@ -120,7 +117,7 @@ def register_doctor():
         db.session.add(doctor)
         db.session.commit()
 
-        print(f"Doctor salvato con id {doctor.id}", flush=True)
+        print(f"Doctor salvato con id {doctor.id} e wallet address {user.wallet_address}", flush=True)
 
         # =========================================================
         # 3. ASSEGNA RUOLO DOCTOR NEL CONTRATTO
@@ -220,6 +217,46 @@ def register_doctor():
             )
 
         print("DOPO TRY VALIDATOR", flush=True)
+
+        print("PRIMA TRY AUTHORITY", flush=True)
+
+        try:
+
+            print("ENTRATO TRY AUTHORITY", flush=True)
+
+            contract = get_contract()
+
+            normalized_address = normalize_address(
+                user.wallet_address
+            )
+
+            tx_hash = contract.functions.addAuthority(
+                normalized_address
+            ).transact(tx_params())
+
+            print(
+                f"TX HASH AUTHORITY: {tx_hash.hex()}",
+                flush=True
+            )
+
+            receipt = w3.eth.wait_for_transaction_receipt(
+                tx_hash,
+                timeout=60
+            )
+
+            print(
+                f"TRANSACTION AUTHORITY MINATA: {receipt}",
+                flush=True
+            )
+
+        except Exception as e:
+
+            print(
+                f"ERRORE addAuthority: {str(e)}",
+                flush=True
+            )
+
+        print("DOPO TRY AUTHORITY", flush=True)
 
         # =========================================================
         # RETURN
