@@ -64,7 +64,7 @@
                             <div class="visit-card-header">
                                 <span class="visit-title">Visita #{{ visit.id }}</span>
                                 <span class="status-badge {{ 'confirmed' if visit.confirmed else 'pending' }}">
-                                    {{ 'Sì' if visit.confirmed else 'In attesa' }}
+                                    {{ 'Confermata' if visit.confirmed else 'In attesa di conferma' }}
                                 </span>
                             </div>
                             <div class="visit-details">
