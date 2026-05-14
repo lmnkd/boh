@@ -41,6 +41,18 @@
                             <strong>Medico:</strong> {{ visit.doctor.nome }} {{ visit.doctor.cognome }}<br>
                             <strong>Paziente:</strong> {{ visit.patient.nome }} {{ visit.patient.cognome }}
                         </div>
+                        {% set record = visit.records | first %}
+                        {% if record %}
+                        <div class="visit-details" style="margin-top: 8px; font-size: 13px;">
+                            <strong>Record #{{ record.id }}</strong> —
+                            Stato: <strong>{{ record.status }}</strong> —
+                            Voti: ✅ {{ record.approve_votes }} / ❌ {{ record.reject_votes }}
+                            {% set prob = record.probabilities | sort(attribute='id') | last %}
+                            {% if prob %}
+                                — Probabilità: <strong>{{ (prob.posterior / 100 * 100) | round(1) }}%</strong>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -52,7 +64,6 @@
         <button class="btn-primary" onclick="location.href='/registrazione_dottore'" style="margin-bottom: 15px;">
             ➕ Registra Nuovo Medico
         </button>
-
         <button class="btn-primary" onclick="location.href='/'" style="background-color: var(--text-muted);">
             Torna alla Home
         </button>
@@ -80,18 +91,35 @@ async function loadValidators() {
         ul.className = "visit-list";
 
         data.validators.forEach(v => {
+            const reputation = v.reputation ?? 0.5;
+            const reputationPct = (reputation * 100).toFixed(1);
+
+            // colore barra reputazione
+            const color = reputation >= 0.7
+                ? "#22c55e"
+                : reputation >= 0.4
+                    ? "#f59e0b"
+                    : "#ef4444";
+
             const li = document.createElement("li");
             li.className = "visit-card";
             li.innerHTML = `
                 <div class="visit-card-header">
-                    <span class="visit-title">
-                        ${v.nome} ${v.cognome}
-                    </span>
+                    <span class="visit-title">${v.nome} ${v.cognome}</span>
                     <span class="status-badge confirmed">Validatore</span>
                 </div>
                 <div class="visit-details">
                     <strong>Email:</strong> ${v.email || "—"}<br>
-                    <strong>Wallet:</strong> <code>${v.wallet_address}</code>
+                    <strong>Wallet:</strong> <code style="font-size:11px;">${v.wallet_address}</code>
+                </div>
+                <div style="margin-top: 10px;">
+                    <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+                        <span>Reputazione</span>
+                        <strong>${reputationPct}%</strong>
+                    </div>
+                    <div style="background:#e5e7eb; border-radius:999px; height:8px; overflow:hidden;">
+                        <div style="width:${reputationPct}%; background:${color}; height:100%; border-radius:999px; transition: width 0.3s;"></div>
+                    </div>
                 </div>
             `;
             ul.appendChild(li);

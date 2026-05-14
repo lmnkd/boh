@@ -4,7 +4,6 @@ pragma solidity ^0.8.17;
 import "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/v4.9.6/contracts/access/AccessControl.sol";
 import "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/v4.9.6/contracts/security/ReentrancyGuard.sol";
 
-
 contract HealthDataValidator is AccessControl, ReentrancyGuard {
 
     bytes32 public constant DOCTOR_ROLE    = keccak256("DOCTOR_ROLE");
@@ -41,7 +40,6 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
         uint256 updatedAt;
     }
 
-    // Validators senza EnumerableSet
     address[] private validatorList;
     mapping(address => bool) private isValidatorMap;
     uint256 private validatorCount;
@@ -88,7 +86,6 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
         if (isValidatorMap[a]) {
             isValidatorMap[a] = false;
             validatorCount--;
-            // Rimuove dall'array swap-and-pop
             for (uint i = 0; i < validatorList.length; i++) {
                 if (validatorList[i] == a) {
                     validatorList[i] = validatorList[validatorList.length - 1];
@@ -165,6 +162,7 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
         emit RecordProposed(recordId, visitId);
     }
 
+    // 🔥 MODIFICATO: non finalizza più automaticamente
     function vote(uint256 recordId, bool approve)
         external
         onlyRole(VALIDATOR_ROLE)
@@ -180,17 +178,24 @@ contract HealthDataValidator is AccessControl, ReentrancyGuard {
         if (approve) r.approveVotes++;
         else         r.rejectVotes++;
 
-        uint256 majority = validatorCount / 2 + 1;
-
-        if (r.approveVotes >= majority) {
-            r.status = Status.APPROVED;
-            emit RecordFinalized(recordId, Status.APPROVED);
-        } else if (r.rejectVotes >= majority) {
-            r.status = Status.REJECTED;
-            emit RecordFinalized(recordId, Status.REJECTED);
-        }
+        // 🔥 RIMOSSA la logica di finalizzazione automatica
+        // La finalizzazione è delegata al backend tramite finalizeRecord
 
         emit VoteCast(recordId, msg.sender, approve);
+    }
+
+    // 🔥 NUOVA: chiamata dal backend quando soglia bayesiana raggiunta
+    function finalizeRecord(uint256 recordId, bool approved)
+        external
+        onlyRole(AUTHORITY_ROLE)
+    {
+        require(recordId > 0 && recordId <= recordCount, "Invalid record");
+        Record storage r = records[recordId];
+        require(r.status == Status.PENDING, "Already finalized");
+
+        r.status = approved ? Status.APPROVED : Status.REJECTED;
+
+        emit RecordFinalized(recordId, r.status);
     }
 
     function updateProbability(

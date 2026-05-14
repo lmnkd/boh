@@ -80,22 +80,18 @@ def get_validators():
     try:
         contract = get_contract()
         validator_addresses = contract.functions.getValidators().call()
-
-        validator_addresses = [
-            Web3.to_checksum_address(a) for a in validator_addresses
-        ]
+        validator_addresses = [Web3.to_checksum_address(a) for a in validator_addresses]
 
         validators = []
-
         for address in validator_addresses:
             user = User.query.filter_by(wallet_address=address).first()
-
             if user and user.doctor:
                 validators.append({
                     "wallet_address": address,
                     "nome": user.doctor.nome,
                     "cognome": user.doctor.cognome,
                     "email": user.email,
+                    "reputation": user.doctor.reputation,  # 🔥 aggiunto
                 })
             else:
                 validators.append({
@@ -103,13 +99,14 @@ def get_validators():
                     "nome": "Sconosciuto",
                     "cognome": "",
                     "email": "",
+                    "reputation": 0.5,
                 })
 
         return jsonify({"validators": validators}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+    
 # =========================
 # CONTRACT STATUS
 # =========================

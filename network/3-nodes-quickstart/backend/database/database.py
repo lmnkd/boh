@@ -2,7 +2,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
-from eth_account import Account
 
 db = SQLAlchemy()
 
@@ -16,11 +15,11 @@ class User(db.Model):
 
     wallet_address = db.Column(db.String(255), unique=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    private_key = db.Column(db.String(255), nullable=True)  # Solo per test, non in produzione!
+    private_key = db.Column(db.String(255), nullable=True)
 
     password_hash = db.Column(db.String(255), nullable=False)
 
-    role = db.Column(db.String(50), nullable=False)  # PATIENT, DOCTOR, AUTHORITY
+    role = db.Column(db.String(50), nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -70,6 +69,8 @@ class Doctor(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100), nullable=False)
 
+    reputation = db.Column(db.Float, default=0.8)
+
     visits = db.relationship('Visit', back_populates='doctor', lazy=True)
 
 
@@ -100,10 +101,11 @@ class Visit(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
 
-    pressione_max = db.Column(db.Integer)
-    pressione_min = db.Column(db.Integer)
-    battiti = db.Column(db.Integer)
-    note = db.Column(db.Text)
+    # dati medici
+    pressione_max = db.Column(db.Integer, nullable=True)
+    pressione_min = db.Column(db.Integer, nullable=True)
+    battiti = db.Column(db.Integer, nullable=True)
+    note = db.Column(db.Text, nullable=True)
 
     data_hash = db.Column(db.String(66), nullable=False)
     patient_hash = db.Column(db.String(66), nullable=False)
@@ -151,6 +153,30 @@ class Record(db.Model):
 
 
 # =========================
+# 🗳️ VOTE
+# =========================
+class Vote(db.Model):
+    __tablename__ = 'votes'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
+
+    approve = db.Column(db.Boolean, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('record_id', 'doctor_id', name='uq_vote_record_doctor'),
+    )
+
+    # relations
+    record = db.relationship('Record', backref='votes')
+    doctor = db.relationship('Doctor', backref='votes')
+
+
+# =========================
 # 📊 PROBABILITY
 # =========================
 class Probability(db.Model):
@@ -158,7 +184,7 @@ class Probability(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    blockchain_id = db.Column(db.Integer, unique=True)
+    blockchain_id = db.Column(db.Integer, unique=True, nullable=True)
 
     record_id = db.Column(db.Integer, db.ForeignKey('records.id'), nullable=False)
 
@@ -183,33 +209,37 @@ def create_app_db(app: Flask):
 
 
 # =========================
-# SEED (ESEMPIO)
+# SEED
 # =========================
 def seed_data():
     print("🌱 Seeding database...")
 
+    from eth_account import Account
+
     w1 = Account.create()
-    
     u1 = User(
         wallet_address=w1.address,
         email="mario.rossi@test.com",
         role="PATIENT",
-        private_key= w1.key.hex()
+        private_key=w1.key.hex()
     )
-
     u1.set_password("password123")
 
+    w2 = Account.create()
     u2 = User(
-        wallet_address="0x2222222222222222222222222222222222222222",
+        wallet_address=w2.address,
         email="luigi.verdi@test.com",
-        role="DOCTOR"
+        role="DOCTOR",
+        private_key=w2.key.hex()
     )
     u2.set_password("password123")
 
+    w3 = Account.create()
     u3 = User(
-        wallet_address="0x7777777777777777777777777777777777777777",
+        wallet_address=w3.address,
         email="autorita@test.com",
-        role="ADMIN"
+        role="ADMIN",
+        private_key=w3.key.hex()
     )
     u3.set_password("password123")
 
@@ -221,13 +251,14 @@ def seed_data():
         nome="Mario",
         cognome="Rossi",
         data_nascita=date(1990, 5, 10),
-        patient_hash="0x" + "a"*64
+        patient_hash="0x" + "a" * 64
     )
 
     d1 = Doctor(
         user_id=u2.id,
         nome="Luigi",
-        cognome="Verdi"
+        cognome="Verdi",
+        reputation=0.5
     )
 
     a1 = Admin(

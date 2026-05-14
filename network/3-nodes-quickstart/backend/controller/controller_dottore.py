@@ -111,7 +111,7 @@ def register_doctor():
         doctor = Doctor(
             user_id=user.id,
             nome=data["nome"],
-            cognome=data["cognome"]
+            cognome=data["cognome"],
         )
 
         db.session.add(doctor)

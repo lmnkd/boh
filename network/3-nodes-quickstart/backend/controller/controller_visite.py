@@ -1,14 +1,13 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import Blueprint, jsonify, request, render_template
-from sqlalchemy.exc import IntegrityError
 from web3 import Web3
 from database.database import db, User, Patient, Doctor, Admin, Visit, Record, Probability
 from blockchain.config import ACCOUNT, w3
 from blockchain.contract import get_contract
-from database.database import db, Patient, Doctor, Admin, Visit, Record, Probability
 
 api = Blueprint("visite_api", __name__)
+
 
 def visit_to_dict(visit):
     return {
@@ -31,27 +30,24 @@ def normalize_address(address):
         raise ValueError("Missing address")
     return Web3.to_checksum_address(address)
 
+
 def bytes32_from_value(value):
     if value is None:
         raise ValueError("Missing bytes32 value")
-
     if isinstance(value, bytes):
         if len(value) != 32:
             raise ValueError("bytes32 value must be exactly 32 bytes")
         return value
-
     if isinstance(value, str):
         if value.startswith("0x"):
             raw = Web3.to_bytes(hexstr=value)
             if len(raw) != 32:
                 raise ValueError("Hex string must encode exactly 32 bytes")
             return raw
-
         encoded = value.encode("utf-8")
         if len(encoded) > 32:
             raise ValueError("String value must fit within 32 bytes")
         return encoded.ljust(32, b"\0")
-
     raise ValueError("Unsupported bytes32 value type")
 
 
@@ -64,11 +60,19 @@ def tx_params(from_address=None):
         params["chainId"] = w3.eth.chain_id
     return params
 
+
+# -----------------------------
+# GET /visits
+# -----------------------------
 @api.route("/visits", methods=["GET"])
 def list_visits():
     visits = Visit.query.all()
     return render_template("visite.html", visits=visits)
 
+
+# -----------------------------
+# DELETE /visits/<id>
+# -----------------------------
 @api.route("/visits/delete/<int:visit_id>", methods=["GET"])
 def delete_visit(visit_id):
     visit = Visit.query.get(visit_id)
@@ -79,6 +83,9 @@ def delete_visit(visit_id):
     return jsonify({"status": "SUCCESS", "message": "Visit deleted successfully"})
 
 
+# -----------------------------
+# GET /visits/<id>
+# -----------------------------
 @api.route("/visits/<int:visit_id>", methods=["GET"])
 def get_visit(visit_id):
     visit = Visit.query.get(visit_id)
@@ -87,17 +94,18 @@ def get_visit(visit_id):
     return jsonify(visit_to_dict(visit))
 
 
+# -----------------------------
+# POST /visits
+# -----------------------------
 @api.route("/visits", methods=["POST"])
 def submit_visit():
     data = request.get_json() or {}
 
-    # 1. Recupero dati
     p_max = data.get("pressione_max")
     p_min = data.get("pressione_min")
     battiti = data.get("battiti")
     note = data.get("note", "")
 
-    # 2. VALIDAZIONE (Il "Controllo")
     try:
         p_max, p_min, battiti = int(p_max), int(p_min), int(battiti)
         if p_max <= p_min:
@@ -119,19 +127,11 @@ def submit_visit():
     if not patient or not doctor:
         return jsonify({"error": "Patient o Doctor non trovato"}), 404
 
-    # 🔐 NON mettiamo dati personali on-chain
-    patient_address = patient.user.wallet_address
-    doctor_address = doctor.user.wallet_address
+    patient_address = normalize_address(patient.user.wallet_address)
 
-    # 1. DEFINISCI IL TIMESTAMP UNA VOLTA SOLA
-    now = datetime.utcnow().isoformat() 
-
-    # 2. CALCOLA L'HASH UNICO (Includendo i nuovi campi)
-    # Usiamo una stringa fissa che includa tutto quello che vuoi proteggere
+    now = datetime.utcnow().isoformat()
     data_content = f"{patient_id}-{doctor_id}-{p_max}-{p_min}-{battiti}-{now}"
     final_data_hash = Web3.keccak(text=data_content)
-    
-    # Calcoliamo anche il patient_hash
     patient_hash = Web3.keccak(text=str(patient_id))
 
     contract = get_contract()
@@ -144,22 +144,18 @@ def submit_visit():
         ).transact(tx_params())
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
-        
-        # Debug: Verifica lo status della transazione
+
         print(f"📋 Receipt status: {receipt.get('status')}, gasUsed: {receipt.get('gasUsed')}")
         print(f"📋 Logs nella receipt: {len(receipt.get('logs', []))}")
-        
-        # Prova a processare gli eventi
+
         try:
             events = contract.events.VisitSubmitted().process_receipt(receipt)
         except Exception as e:
             print(f"⚠️ Errore processamento evento: {str(e)}")
             events = []
-        
-        # Se non trova eventi nel modo formale, estrai l'ID dalla receipt
+
         if not events:
-            print("⚠️ Evento VisitSubmitted non trovato nel processing. Usando visitCount dal contratto...")
-            # Fallback: usa il visitCount dal contratto
+            print("⚠️ Evento non trovato, uso visitCount...")
             blockchain_id = contract.functions.visitCount().call()
             print(f"📋 visitCount dal contratto: {blockchain_id}")
         else:
@@ -167,14 +163,8 @@ def submit_visit():
             print(f"✅ Evento trovato! visitId: {blockchain_id}")
 
     except Exception as exc:
-        print(f"❌ Errore durante submitVisit: {str(exc)}")
+        print(f"❌ Errore submitVisit: {str(exc)}")
         return jsonify({"error": str(exc)}), 500
-    
-    # 3. HASHING SICURO
-    # Includiamo i parametri medici nell'hash della blockchain. 
-    # Così, se qualcuno modifica i dati nel DB locale, l'hash non corrisponderà più!
-    data_content = f"{patient_id}-{doctor_id}-{p_max}-{p_min}-{battiti}-{datetime.utcnow()}"
-    data_hash = Web3.keccak(text=data_content)
 
     visit = Visit(
         blockchain_id=blockchain_id,
@@ -199,6 +189,9 @@ def submit_visit():
     }), 201
 
 
+# -----------------------------
+# POST /visits/<id>/confirm
+# -----------------------------
 @api.route("/visits/<int:visit_id>/confirm", methods=["POST"])
 def confirm_visit(visit_id):
 
@@ -223,7 +216,6 @@ def confirm_visit(visit_id):
         contract = get_contract()
 
         nonce = w3.eth.get_transaction_count(user.wallet_address)
-
         print("=== DEBUG NONCE ===", nonce, flush=True)
 
         tx = contract.functions.confirmVisit(
@@ -235,16 +227,13 @@ def confirm_visit(visit_id):
             "gasPrice": 0
         })
 
-        print("=== DEBUG TX ===", flush=True)
-        print(tx, flush=True)
+        print("=== DEBUG TX ===", tx, flush=True)
 
         signed = w3.eth.account.sign_transaction(tx, user.private_key)
-
         print("=== DEBUG SIGNED TX ===", flush=True)
         print("raw tx size:", len(signed.raw_transaction), flush=True)
 
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-
         print("=== TX SENT ===", tx_hash.hex(), flush=True)
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
@@ -255,7 +244,6 @@ def confirm_visit(visit_id):
         print("gasUsed:", receipt.gasUsed, flush=True)
         print("txHash:", receipt.transactionHash.hex(), flush=True)
 
-        # 🔥 DEBUG STATUS LOGICO
         if receipt.status == 1:
             print("✅ TRANSAZIONE SUCCESSO", flush=True)
         else:
@@ -263,14 +251,11 @@ def confirm_visit(visit_id):
 
     except Exception as exc:
         print("❌ EXCEPTION:", str(exc), flush=True)
-        return jsonify({
-            "error": str(exc),
-            "step": "transaction_failed"
-        }), 500
+        return jsonify({"error": str(exc), "step": "transaction_failed"}), 500
 
-    visit_data = get_contract().functions.getVisit(
-    visit.blockchain_id).call()
+    visit_data = get_contract().functions.getVisit(visit.blockchain_id).call()
     print("VISIT ONCHAIN:", visit_data)
+
     visit.confirmed = visit_data[4]
     visit.blockchain_tx = tx_hash.hex()
     db.session.commit()
