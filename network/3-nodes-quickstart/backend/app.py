@@ -13,6 +13,7 @@ from controller.controller_visite import api as visite_api
 from controller.controller_dottore import api as dottore_api
 from controller.record_controller import api as record_api
 from controller.auth import auth
+from controller.controller_user import api as user_api
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -167,6 +168,10 @@ def deploy():
 def registrazione_dottore():
     return render_template("registrazione_dottore.html")
 
+@app.route("/registrazione_paziente")
+def registrazione_paziente():
+    return render_template("registrazione_paziente.html")
+
 @app.route("/patient")
 def patient_dashboard():
     if session.get("role") != "PATIENT":
@@ -219,6 +224,7 @@ app.register_blueprint(controller_api, url_prefix="/api")
 app.register_blueprint(visite_api, url_prefix="/api")
 app.register_blueprint(dottore_api, url_prefix="/api")
 app.register_blueprint(record_api, url_prefix="/api")
+app.register_blueprint(user_api, url_prefix="/api")
 
 # =========================
 # RUN
