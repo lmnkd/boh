@@ -267,7 +267,8 @@ def register_doctor():
         return jsonify({
             "message": "Doctor creato con successo",
             "doctor_id": doctor.id,
-            "user_id": user.id
+            "user_id": user.id,
+            "wallet_address": user.wallet_address
         }), 201
 
     except Exception as e:
