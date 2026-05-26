@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrazione Paziente - Sistema Sanitario</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stile.css') }}">
+</head>
+<body>
+
+    <div class="container-page">
+        <div class="brand-icon">
+            <span class="material-icons-round">person_add</span>
+        </div>
+
+        <h1>Registrazione Paziente</h1>
+        <p class="subtitle">Inserisci i tuoi dati per creare un account e il tuo wallet sanitario</p>
+
+        <form id="registerForm" onsubmit="event.preventDefault(); registerPatient();">
+            <div class="input-group">
+                <input type="text" id="nome" placeholder="Nome" required>
+                <span class="material-icons-round input-icon">badge</span>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="cognome" placeholder="Cognome" required>
+                <span class="material-icons-round input-icon">badge</span>
+            </div>
+
+            <div class="input-group">
+                <input type="date" id="data_nascita" required>
+                <span class="material-icons-round input-icon">calendar_today</span>
+            </div>
+
+            <button type="submit" class="btn-primary">Registrati</button>
+        </form>
+
+        <pre id="output"></pre>
+
+        <button class="btn-primary" onclick="location.href='/'" style="background-color: var(--text-muted); margin-top: 15px;">
+            Torna al Login
+        </button>
+
+        <p class="footer-text">Generazione automatica di chiavi crittografiche e credenziali</p>
+    </div>
+
+    <script>
+        function generateEmail(nome, cognome) {
+            return `${nome.toLowerCase().replace(/\s+/g, '')}.${cognome.toLowerCase().replace(/\s+/g, '')}@test.com`;
+        }
+
+        function generatePassword() {
+            return Math.random().toString(36).slice(-10);
+        }
+
+        async function registerPatient() {
+            const nome = document.getElementById("nome").value.trim();
+            const cognome = document.getElementById("cognome").value.trim();
+            const dataNascita = document.getElementById("data_nascita").value;
+            const outputBox = document.getElementById("output");
+
+            outputBox.style.display = "none";
+            outputBox.style.color = "var(--text-main)";
+            outputBox.style.backgroundColor = "#f0fdfa"; 
+            outputBox.style.borderColor = "#ccfbf1";
+            outputBox.innerText = "";
+
+            if (!nome || !cognome || !dataNascita) {
+                showError("Compila tutti i campi.");
+                return;
+            }
+
+            const email = generateEmail(nome, cognome);
+            const password = generatePassword();
+
+            try {
+                const response = await fetch("/api/register-patient", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        nome: nome,
+                        cognome: cognome,
+                        data_nascita: dataNascita,
+                        email: email,
+                        password: password,
+                        role: "PATIENT"
+                    })
+                });
+
+                const data = await response.json();
+                outputBox.style.display = "block";
+
+                if (response.ok) {
+                    outputBox.innerText = 
+                        `✅ Registrazione completata!\n\n` +
+                        `📧 Email: ${email}\n` +
+                        `🔑 Password: ${password}\n\n` +
+                        `👛 Wallet Address:\n${data.wallet_address}`;
+                } else {
+                    showError("Errore: " + (data.error || "Impossibile registrare il paziente"));
+                }
+
+            } catch (err) {
+                showError("Errore di connessione al server.");
+            }
+        }
+
+        function showError(msg) {
+            const outputBox = document.getElementById("output");
+            outputBox.style.color = "var(--error-color)";
+            outputBox.style.backgroundColor = "#fef2f2";
+            outputBox.style.borderColor = "#fca5a5";
+            outputBox.innerText = msg;
+            outputBox.style.display = "block";
+        }
+    </script>
+
+</body>
+</html>
