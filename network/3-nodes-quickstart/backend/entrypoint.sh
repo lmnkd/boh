@@ -3,7 +3,7 @@ set -e
 
 export PYTHONUNBUFFERED=1
 
-echo "🚀 Avviamento backend..."
+echo "Avviamento backend..."
 
 # =========================
 # ENV
@@ -17,14 +17,14 @@ fi
 # =========================
 # QUORUM CHECK
 # =========================
-echo "⏳ Aspettando che Quorum sia pronto..."
+echo "Aspettando che Quorum sia pronto..."
 
 for i in {1..60}; do
     if python -c "
 from blockchain.config import w3
 exit(0 if w3.is_connected() else 1)
 " 2>/dev/null; then
-        echo "✅ Quorum è pronto!"
+        echo " Quorum è pronto!"
         break
     fi
 
@@ -35,7 +35,7 @@ done
 # =========================
 # POSTGRES CHECK
 # =========================
-echo "⏳ Aspettando PostgreSQL..."
+echo " Aspettando PostgreSQL..."
 
 for i in {1..60}; do
     if python -c "
@@ -48,7 +48,7 @@ conn = psycopg2.connect(
 )
 conn.close()
 " 2>/dev/null; then
-        echo "✅ PostgreSQL pronto!"
+        echo "PostgreSQL pronto!"
         break
     fi
 
@@ -57,20 +57,20 @@ conn.close()
 done
 
 # =========================
-# 🔥 FORCE DEPLOY
+# FORCE DEPLOY
 # =========================
-echo "📜 Deploy contratto (FORZATO)..."
+echo "Deploy contratto (FORZATO)..."
 
 cd /home/app/blockchain
 
 python -u deploy.py
 
-echo "✅ Deploy completato"
+echo " Deploy completato"
 
 # =========================
 # FLASK START
 # =========================
-echo "🎯 Avviando Flask..."
+echo " Avviando Flask..."
 
 cd /home/app
 python -u app.py

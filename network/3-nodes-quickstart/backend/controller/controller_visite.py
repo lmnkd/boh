@@ -155,15 +155,15 @@ def submit_visit():
             events = []
 
         if not events:
-            print("⚠️ Evento non trovato, uso visitCount...")
+            print("Evento non trovato, uso visitCount...")
             blockchain_id = contract.functions.visitCount().call()
-            print(f"📋 visitCount dal contratto: {blockchain_id}")
+            print(f"visitCount dal contratto: {blockchain_id}")
         else:
             blockchain_id = events[0].args.visitId
-            print(f"✅ Evento trovato! visitId: {blockchain_id}")
+            print(f"Evento trovato! visitId: {blockchain_id}")
 
     except Exception as exc:
-        print(f"❌ Errore submitVisit: {str(exc)}")
+        print(f"Errore submitVisit: {str(exc)}")
         return jsonify({"error": str(exc)}), 500
 
     visit = Visit(
@@ -245,12 +245,12 @@ def confirm_visit(visit_id):
         print("txHash:", receipt.transactionHash.hex(), flush=True)
 
         if receipt.status == 1:
-            print("✅ TRANSAZIONE SUCCESSO", flush=True)
+            print("TRANSAZIONE SUCCESSO", flush=True)
         else:
-            print("❌ TRANSAZIONE FALLITA (REVERT)", flush=True)
+            print("TRANSAZIONE FALLITA (REVERT)", flush=True)
 
     except Exception as exc:
-        print("❌ EXCEPTION:", str(exc), flush=True)
+        print("EXCEPTION:", str(exc), flush=True)
         return jsonify({"error": str(exc), "step": "transaction_failed"}), 500
 
     visit_data = get_contract().functions.getVisit(visit.blockchain_id).call()

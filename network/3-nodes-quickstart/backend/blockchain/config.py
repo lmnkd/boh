@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 # =========================
-# 📂 CONFIGURAZIONE E CARICAMENTO .env
+# CONFIGURAZIONE E CARICAMENTO .env
 
 def find_dotenv_path() -> Optional[Path]:
     current = Path(__file__).resolve()
@@ -41,7 +41,7 @@ def load_dotenv(dotenv_path: Optional[Path] = None, override: bool = False) -> N
 load_dotenv()
 
 # =========================
-# 🌐 CONNECTION BLOCKCHAIN
+# CONNECTION BLOCKCHAIN
 # =========================
 
 WEB3_PROVIDER = os.getenv("WEB3_PROVIDER", "http://127.0.0.1:8545")
@@ -57,35 +57,35 @@ for attempt in range(max_retries):
         # Aggiungi middleware PoA per Quorum/RAFT
         w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         if w3.is_connected():
-            print(f"✅ Blockchain connessa: {WEB3_PROVIDER}")
+            print(f"Blockchain connessa: {WEB3_PROVIDER}")
             break
         else:
-            print(f"⏳ Tentativo {attempt + 1}/{max_retries}: Connessione non riuscita. Riprovo tra {retry_delay}s...")
+            print(f"Tentativo {attempt + 1}/{max_retries}: Connessione non riuscita. Riprovo tra {retry_delay}s...")
             time.sleep(retry_delay)
     except Exception as e:
-        print(f"⏳ Tentativo {attempt + 1}/{max_retries}: Errore di connessione - {str(e)}. Riprovo tra {retry_delay}s...")
+        print(f"Tentativo {attempt + 1}/{max_retries}: Errore di connessione - {str(e)}. Riprovo tra {retry_delay}s...")
         time.sleep(retry_delay)
 
 if w3 is None or not w3.is_connected():
-    raise Exception(f"❌ Blockchain non connessa a {WEB3_PROVIDER} dopo {max_retries} tentativi")
+    raise Exception(f"Blockchain non connessa a {WEB3_PROVIDER} dopo {max_retries} tentativi")
 
-print("✅ Blockchain connessa:", w3.is_connected())
+print("Blockchain connessa:", w3.is_connected())
 
 
 # =========================
-# 🔐 ACCOUNT BACKEND
+# ACCOUNT BACKEND
 # =========================
 
 ACCOUNT = os.getenv("BLOCKCHAIN_ACCOUNT")
 
 if not ACCOUNT:
-    raise Exception("❌ BLOCKCHAIN_ACCOUNT non impostato nelle variabili d'ambiente")
+    raise Exception("BLOCKCHAIN_ACCOUNT non impostato nelle variabili d'ambiente")
 
 PRIVATE_KEY = None  # Quorum RAFT non la richiede
 
 
 # =========================
-# 📜 CONTRACT ADDRESS (dinamico)
+# CONTRACT ADDRESS (dinamico)
 # =========================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -101,7 +101,7 @@ def get_contract_address():
             data = json.load(f)
             return data.get("address")
     except Exception as e:
-        print("⚠️ Errore lettura address.json:", e)
+        print("Errore lettura address.json:", e)
         return None
 
 
@@ -109,11 +109,11 @@ CONTRACT_ADDRESS = get_contract_address()
 
 
 # =========================
-# ⚠️ VALIDAZIONE ADDRESS
+# VALIDAZIONE ADDRESS
 # =========================
 
 if CONTRACT_ADDRESS:
     CONTRACT_ADDRESS = Web3.to_checksum_address(CONTRACT_ADDRESS)
-    print("📜 Contract address:", CONTRACT_ADDRESS)
+    print("Contract address:", CONTRACT_ADDRESS)
 else:
-    print("⚠️ Nessun contratto deployato ancora")
+    print("Nessun contratto deployato ancora")

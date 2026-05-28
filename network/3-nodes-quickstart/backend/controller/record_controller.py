@@ -209,7 +209,7 @@ def propose_record_for_visit(visit_id):
         db.session.add(probability)
         db.session.commit()
 
-        print(f"✅ Record {record.id} creato con probabilità iniziale 0.50")
+        print(f"Record {record.id} creato con probabilità iniziale 0.50")
 
         return jsonify({
             "status": "SUCCESS",
@@ -327,18 +327,18 @@ def vote(record_id):
             if posterior >= APPROVAL_THRESHOLD:
                 approved_final = True
                 finalized = True
-                print(f"✅ Soglia approvazione raggiunta: {posterior} >= {APPROVAL_THRESHOLD}")
+                print(f"Soglia approvazione raggiunta: {posterior} >= {APPROVAL_THRESHOLD}")
             elif posterior <= REJECTION_THRESHOLD:
                 approved_final = False
                 finalized = True
-                print(f"❌ Soglia rifiuto raggiunta: {posterior} <= {REJECTION_THRESHOLD}")
+                print(f"Soglia rifiuto raggiunta: {posterior} <= {REJECTION_THRESHOLD}")
 
         if finalized:
             # Step 6: finalizza on-chain
             finalize_tx = finalize_record_onchain(record, approved_final)
             record.status = "APPROVED" if approved_final else "REJECTED"
             record.blockchain_tx = finalize_tx.hex()
-            print(f"🏁 Record finalizzato: {record.status}")
+            print(f"Record finalizzato: {record.status}")
 
             # Step 7: aggiorna reputazione di tutti i votanti
             for vote_entry in record.votes:
@@ -365,7 +365,7 @@ def vote(record_id):
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        print("❌ ERROR vote:", e)
+        print("ERROR vote:", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -395,5 +395,5 @@ def fund_address():
             "amount": "1 ETH"
         })
     except Exception as e:
-        print("❌ FUND ERROR:", e)
+        print("FUND ERROR:", e)
         return jsonify({"error": str(e)}), 500

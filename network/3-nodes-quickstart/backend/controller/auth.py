@@ -5,7 +5,7 @@ from werkzeug.security import check_password_hash
 auth = Blueprint("auth", __name__)
 
 # =========================
-# 🔑 LOGIN CON PASSWORD
+# LOGIN CON PASSWORD
 # =========================
 @auth.route("/login", methods=["POST"])
 def login():
@@ -19,7 +19,7 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"error": "Credenziali non valide"}), 401
 
-    # 🔥 QUI INSERISCI LA SESSIONE
+    # QUI INSERISCI LA SESSIONE
     session["user_id"] = user.id
     session["role"] = user.role
 

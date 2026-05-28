@@ -36,7 +36,7 @@ Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
 
 def deploy_contract(validators):
 
-    print("\n🚀 START DEPLOY")
+    print("\n START DEPLOY")
 
     # checksum + dedup
     validators = [
@@ -45,20 +45,20 @@ def deploy_contract(validators):
     ]
     validators = list(dict.fromkeys(validators))  # remove duplicates
 
-    print("🧾 Validators finali:", validators)
+    print("Validators finali:", validators)
 
     accounts = w3.eth.accounts
-    print("🧾 Accounts nodo:", accounts)
-    print("🧾 Deploying account:", ACCOUNT)
+    print("Accounts nodo:", accounts)
+    print("Deploying account:", ACCOUNT)
 
     if ACCOUNT.lower() not in [a.lower() for a in accounts]:
-        raise Exception("❌ ACCOUNT non unlocked sul nodo")
+        raise Exception("ACCOUNT non unlocked sul nodo")
 
     # opzionale: evita doppio inserimento deployer
     if ACCOUNT in validators:
-        print("⚠️ Deployer già nei validators, rimozione duplicato inutile")
+        print("Deployer già nei validators, rimozione duplicato inutile")
     else:
-        print("ℹ️ Deployer NON presente nei validators")
+        print("ℹDeployer NON presente nei validators")
 
     nonce = w3.eth.get_transaction_count(ACCOUNT)
 
@@ -69,24 +69,24 @@ def deploy_contract(validators):
         "gasPrice": w3.eth.gas_price,
     }
 
-    print("📦 Deploy tx params:", tx_params)
+    print(" Deploy tx params:", tx_params)
 
     tx_hash = Contract.constructor(validators).transact(tx_params)
 
-    print("📡 TX sent:", tx_hash.hex())
+    print("TX sent:", tx_hash.hex())
 
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
-    print("\n📦 RECEIPT")
+    print("\n RECEIPT")
     print("block:", receipt.blockNumber)
     print("gas used:", receipt.gasUsed)
     print("status:", receipt.status)
 
     if receipt.status != 1:
-        raise Exception("❌ Deploy fallito (revert)")
+        raise Exception("Deploy fallito (revert)")
 
     if not receipt.contractAddress:
-        raise Exception("❌ contractAddress mancante")
+        raise Exception("contractAddress mancante")
 
     address = Web3.to_checksum_address(receipt.contractAddress)
 
@@ -96,7 +96,7 @@ def deploy_contract(validators):
     with open(address_file, "w") as f:
         json.dump({"address": address}, f)
 
-    print("\n✅ CONTRACT DEPLOYED:", address)
+    print("\nCONTRACT DEPLOYED:", address)
 
     return address
 
@@ -117,4 +117,4 @@ if __name__ == "__main__":
 
     addr = deploy_contract(validators)
 
-    print("\n🎉 DONE:", addr)
+    print("\n DONE:", addr)

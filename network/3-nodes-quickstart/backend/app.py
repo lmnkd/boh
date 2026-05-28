@@ -92,7 +92,7 @@ def get_validators():
                     "nome": user.doctor.nome,
                     "cognome": user.doctor.cognome,
                     "email": user.email,
-                    "reputation": user.doctor.reputation,  # 🔥 aggiunto
+                    "reputation": user.doctor.reputation,  
                 })
             else:
                 validators.append({

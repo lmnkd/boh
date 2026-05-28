@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 db = SQLAlchemy()
 
 # =========================
-# 👤 USER (AUTH)
+# USER (AUTH)
 # =========================
 class User(db.Model):
     __tablename__ = 'users'
@@ -36,7 +36,7 @@ class User(db.Model):
 
 
 # =========================
-# 👤 PATIENT
+# PATIENT
 # =========================
 class Patient(db.Model):
     __tablename__ = 'patients'
@@ -57,7 +57,7 @@ class Patient(db.Model):
 
 
 # =========================
-# 🧑‍⚕️ DOCTOR
+# DOCTOR
 # =========================
 class Doctor(db.Model):
     __tablename__ = 'doctors'
@@ -75,7 +75,7 @@ class Doctor(db.Model):
 
 
 # =========================
-# 🏥 Autorità
+# Autorità
 # =========================
 class Admin(db.Model):
     __tablename__ = 'admins'
@@ -89,7 +89,7 @@ class Admin(db.Model):
 
 
 # =========================
-# 🩺 VISIT
+# VISIT
 # =========================
 class Visit(db.Model):
     __tablename__ = 'visits'
@@ -123,7 +123,7 @@ class Visit(db.Model):
 
 
 # =========================
-# 📄 RECORD
+# RECORD
 # =========================
 class Record(db.Model):
     __tablename__ = 'records'
@@ -153,7 +153,7 @@ class Record(db.Model):
 
 
 # =========================
-# 🗳️ VOTE
+# VOTE
 # =========================
 class Vote(db.Model):
     __tablename__ = 'votes'
@@ -177,7 +177,7 @@ class Vote(db.Model):
 
 
 # =========================
-# 📊 PROBABILITY
+# PROBABILITY
 # =========================
 class Probability(db.Model):
     __tablename__ = 'probabilities'
@@ -205,7 +205,7 @@ def create_app_db(app: Flask):
     db.init_app(app)
     with app.app_context():
         db.create_all()
-        print("✅ Database creato correttamente!")
+        print("Database creato correttamente!")
 
 
 # =========================
@@ -270,4 +270,4 @@ def seed_data():
     db.session.add_all([p1, d1, a1])
     db.session.commit()
 
-    print("✅ Seed completato!")
+    print("Seed completato!")

@@ -8,7 +8,7 @@ backend_dir = Path(__file__).resolve().parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-# ✅ FIX: estrai SOLO ABI
+#FIX: estrai SOLO ABI
 abi_path = Path(__file__).resolve().parent / "abi.json"
 
 with open(abi_path) as f:
@@ -22,7 +22,7 @@ def get_contract():
     print("EVENTS IN ABI:", [item.get("name") for item in abi if item.get("type") == "event"])
 
     if not address:
-        raise Exception("❌ Contratto non ancora deployato")
+        raise Exception("Contratto non ancora deployato")
 
     return w3.eth.contract(
         address=address,

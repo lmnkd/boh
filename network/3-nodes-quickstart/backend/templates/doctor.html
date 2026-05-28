@@ -296,7 +296,7 @@
         const btn = event.currentTarget;
         const visitId = btn.dataset.visitId;
         btn.disabled = true;
-        btn.textContent = "⏳ Invio...";
+        btn.textContent = "Invio...";
 
         try {
             const res = await fetch(`/api/visit/${visitId}/propose_record`, {
@@ -308,16 +308,16 @@
             if (!res.ok) {
                 alert("Errore proposta record: " + (data.error || "server error"));
                 btn.disabled = false;
-                btn.textContent = "📋 Proponi Record";
+                btn.textContent = "Proponi Record";
                 return;
             }
 
-            alert(`✅ Record proposto!\nRecord ID: ${data.record_id}\nTx: ${data.tx_hash}`);
+            alert(`Record proposto!\nRecord ID: ${data.record_id}\nTx: ${data.tx_hash}`);
             window.location.reload();
         } catch (err) {
             alert("Errore di connessione al server");
             btn.disabled = false;
-            btn.textContent = "📋 Proponi Record";
+            btn.textContent = " Proponi Record";
         }
     }
 
@@ -326,7 +326,7 @@
         const recordId = btn.dataset.recordId;
         const doctorId = btn.dataset.doctorId;
         btn.disabled = true;
-        btn.textContent = "⏳...";
+        btn.textContent = "...";
 
         try {
             const res = await fetch(`/api/records/${recordId}/vote`, {
