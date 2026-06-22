@@ -4,6 +4,7 @@ from database.database import db, Record, Visit, Doctor, User, Probability, Vote
 from blockchain.contract import get_contract
 from blockchain.config import ACCOUNT, w3
 from web3 import Web3
+import math
 
 api = Blueprint("record_api", __name__)
 
@@ -15,6 +16,63 @@ REJECTION_THRESHOLD = 0.10
 REPUTATION_REWARD   = 0.02
 REPUTATION_PENALTY  = 0.03
 MIN_VOTES           = 1
+
+
+# -----------------------------
+# Bayes helpers
+# -----------------------------
+
+def bayesian_likelihood(reputation, approve, correct=True):
+    reputation = max(0.0, min(1.0, float(reputation)))
+    if correct:
+        return reputation if approve else 1.0 - reputation
+    return 1.0 - reputation if approve else reputation
+
+
+def _stable_logsumexp(a, b):
+    """Compute log(exp(a) + exp(b)) in a numerically stable way."""
+    if a < b:
+        a, b = b, a
+    return a + math.log1p(math.exp(b - a))
+
+
+def bayesian_update(prior, votes):
+    """
+    Aggiorna la probabilità posteriore che il record sia corretto usando
+    tutti i voti a disposizione come evidenza indipendente.
+
+    prior = probabilità iniziale del record corretto [0,1]
+    votes = lista di oggetti Vote con attributi doctor.reputation e approve
+    """
+    prior = max(0.0, min(1.0, float(prior)))
+    if not votes:
+        return prior
+
+    log_prior = math.log(max(prior, 1e-12))
+    log_not_prior = math.log(max(1.0 - prior, 1e-12))
+    log_like_correct = 0.0
+    log_like_incorrect = 0.0
+
+    for vote_entry in votes:
+        reputation = max(0.0, min(1.0, float(vote_entry.doctor.reputation)))
+        if vote_entry.approve:
+            log_like_correct += math.log(max(reputation, 1e-12))
+            log_like_incorrect += math.log(max(1.0 - reputation, 1e-12))
+        else:
+            log_like_correct += math.log(max(1.0 - reputation, 1e-12))
+            log_like_incorrect += math.log(max(reputation, 1e-12))
+
+    log_numerator = log_prior + log_like_correct
+    log_denominator = _stable_logsumexp(log_numerator, log_not_prior + log_like_incorrect)
+    posterior = math.exp(log_numerator - log_denominator)
+    return posterior
+
+
+def get_initial_prior(record_id):
+    probability = Probability.query.filter_by(record_id=record_id).order_by(Probability.id.asc()).first()
+    if probability is None:
+        return 0.5
+    return probability.prior / 100.0
 
 
 # -----------------------------
@@ -53,24 +111,6 @@ def get_doctor_credentials(doctor_id):
     if not user or not user.private_key:
         raise ValueError(f"Private key non trovata per doctor {doctor_id}")
     return doctor, user.wallet_address, user.private_key
-
-
-# -----------------------------
-# MOTORE BAYESIANO
-# -----------------------------
-def bayesian_update(prior, reputation, approve):
-    """
-    Aggiorna la probabilità posteriore con il teorema di Bayes.
-    prior      = probabilità corrente che il record sia corretto [0,1]
-    reputation = affidabilità del validatore [0,1]
-    approve    = True se approva, False se rifiuta
-    """
-    likelihood = reputation if approve else (1 - reputation)
-    denominator = (likelihood * prior) + ((1 - likelihood) * (1 - prior))
-    if denominator == 0:
-        return prior
-    posterior = (likelihood * prior) / denominator
-    return round(posterior, 6)
 
 
 def update_reputation(doctor, approved_final, voted_approve):
@@ -295,18 +335,16 @@ def vote(record_id):
         )
         db.session.add(vote_entry)
 
-        # Step 4: aggiorna probabilità bayesiana
-        probability = Probability.query.filter_by(
-            record_id=record.id
-        ).order_by(Probability.id.desc()).first()
-
-        prior = (probability.posterior / 100.0) if probability else 0.5
-        posterior = bayesian_update(prior, doctor.reputation, approve)
+        # Step 4: calcola posterior aggiornato usando tutti i voti come evidenza
+        db.session.flush()
+        votes = Vote.query.filter_by(record_id=record.id).all()
+        prior = get_initial_prior(record.id)
+        posterior = bayesian_update(prior, votes)
         posterior_int = round(posterior * 100)
 
         print("=== BAYESIAN UPDATE ===")
-        print(f"Prior: {prior}")
-        print(f"Reputation: {doctor.reputation}")
+        print(f"Initial prior: {prior}")
+        print(f"Doctor reputation: {doctor.reputation}")
         print(f"Approve: {approve}")
         print(f"Posterior: {posterior}")
 
