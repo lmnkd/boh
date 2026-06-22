@@ -23,14 +23,7 @@ MIN_VOTES           = 1
 # -----------------------------
 
 def vote_likelihood(reputation, approve, record_correct):
-    """
-    Probabilità condizionata di un voto dato lo stato corretto del record.
 
-    Qui modelliamo una rete bayesiana in cui:
-    - il nodo nascosto è "record_correct"
-    - il nodo osservato è il voto del medico
-    - il nodo "reputation" è un parametro noto che influenza la probabilità del voto
-    """
     reputation = max(0.0, min(1.0, float(reputation)))
     if record_correct:
         return reputation if approve else 1.0 - reputation
@@ -38,19 +31,13 @@ def vote_likelihood(reputation, approve, record_correct):
 
 
 def _stable_logsumexp(a, b):
-    """Compute log(exp(a) + exp(b)) in a numerically stable way."""
     if a < b:
         a, b = b, a
     return a + math.log1p(math.exp(b - a))
 
 
 def bayesian_network_posterior(prior, votes):
-    """
-    Calcola P(record_correct | votes, reputazioni) all'interno di una rete bayesiana.
-
-    prior = probabilità iniziale del record corretto [0,1]
-    votes = lista di Vote con attributi doctor.reputation e approve
-    """
+  
     prior = max(0.0, min(1.0, float(prior)))
     if not votes:
         return prior
@@ -121,10 +108,7 @@ def get_doctor_credentials(doctor_id):
 
 
 def update_reputation(doctor, approved_final, voted_approve):
-    """
-    Ricompensa o penalizza il dottore in base alla coerenza
-    del suo voto con il risultato finale.
-    """
+  
     if voted_approve == approved_final:
         doctor.reputation = min(1.0, round(doctor.reputation + REPUTATION_REWARD, 4))
     else:
@@ -135,10 +119,7 @@ def update_reputation(doctor, approved_final, voted_approve):
 # HELPER: finalizza record on-chain
 # -----------------------------
 def finalize_record_onchain(record, approved):
-    """
-    Chiama finalizeRecord sul contratto usando la private key
-    dell'authority che ha proposto il record.
-    """
+    
     proposer_user = User.query.filter_by(
         wallet_address=record.authority_wallet
     ).first()
