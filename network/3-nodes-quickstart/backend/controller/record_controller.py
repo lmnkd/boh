@@ -22,9 +22,17 @@ MIN_VOTES           = 1
 # Bayes helpers
 # -----------------------------
 
-def bayesian_likelihood(reputation, approve, correct=True):
+def vote_likelihood(reputation, approve, record_correct):
+    """
+    Probabilità condizionata di un voto dato lo stato corretto del record.
+
+    Qui modelliamo una rete bayesiana in cui:
+    - il nodo nascosto è "record_correct"
+    - il nodo osservato è il voto del medico
+    - il nodo "reputation" è un parametro noto che influenza la probabilità del voto
+    """
     reputation = max(0.0, min(1.0, float(reputation)))
-    if correct:
+    if record_correct:
         return reputation if approve else 1.0 - reputation
     return 1.0 - reputation if approve else reputation
 
@@ -36,13 +44,12 @@ def _stable_logsumexp(a, b):
     return a + math.log1p(math.exp(b - a))
 
 
-def bayesian_update(prior, votes):
+def bayesian_network_posterior(prior, votes):
     """
-    Aggiorna la probabilità posteriore che il record sia corretto usando
-    tutti i voti a disposizione come evidenza indipendente.
+    Calcola P(record_correct | votes, reputazioni) all'interno di una rete bayesiana.
 
     prior = probabilità iniziale del record corretto [0,1]
-    votes = lista di oggetti Vote con attributi doctor.reputation e approve
+    votes = lista di Vote con attributi doctor.reputation e approve
     """
     prior = max(0.0, min(1.0, float(prior)))
     if not votes:
@@ -50,22 +57,22 @@ def bayesian_update(prior, votes):
 
     log_prior = math.log(max(prior, 1e-12))
     log_not_prior = math.log(max(1.0 - prior, 1e-12))
-    log_like_correct = 0.0
-    log_like_incorrect = 0.0
+    log_likelihood_if_correct = 0.0
+    log_likelihood_if_incorrect = 0.0
 
     for vote_entry in votes:
         reputation = max(0.0, min(1.0, float(vote_entry.doctor.reputation)))
-        if vote_entry.approve:
-            log_like_correct += math.log(max(reputation, 1e-12))
-            log_like_incorrect += math.log(max(1.0 - reputation, 1e-12))
-        else:
-            log_like_correct += math.log(max(1.0 - reputation, 1e-12))
-            log_like_incorrect += math.log(max(reputation, 1e-12))
+        log_likelihood_if_correct += math.log(max(vote_likelihood(reputation, vote_entry.approve, True), 1e-12))
+        log_likelihood_if_incorrect += math.log(max(vote_likelihood(reputation, vote_entry.approve, False), 1e-12))
 
-    log_numerator = log_prior + log_like_correct
-    log_denominator = _stable_logsumexp(log_numerator, log_not_prior + log_like_incorrect)
+    log_numerator = log_prior + log_likelihood_if_correct
+    log_denominator = _stable_logsumexp(log_numerator, log_not_prior + log_likelihood_if_incorrect)
     posterior = math.exp(log_numerator - log_denominator)
     return posterior
+
+
+def bayesian_update(prior, votes):
+    return bayesian_network_posterior(prior, votes)
 
 
 def get_initial_prior(record_id):
